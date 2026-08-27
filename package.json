@@ -133,7 +133,7 @@
         "gitCommitMessageEditor.autoGitmoji": {
           "type": "boolean",
           "default": true,
-          "description": "به‌طور خودکار ایموجی متناسب با Type انتخاب شود (فعال/غیرفعال)"
+          "description": "Automatically select the emoji matching the Type (enable/disable)"
         },
         "gitCommitMessageEditor.detectIssueFromBranch": {
           "type": "boolean",

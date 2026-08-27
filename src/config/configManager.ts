@@ -84,7 +84,7 @@ export class ConfigManager {
     const dir = path.join(this.extensionPath, BUNDLED_TEMPLATES_DIR);
     const loaded = readTemplatesFromDir(dir);
     if (loaded.length === 0) {
-      // اگر هیچ فایلی در templates نبود، از default.json استفاده کن
+      // If there is no file in templates, use default.json
       const fallback = loadDefaultConfig(this.extensionPath);
       bundledTemplatesCache = [fallback];
       return bundledTemplatesCache;
@@ -125,26 +125,25 @@ export class ConfigManager {
     const workspaceTemplates = this.loadWorkspaceTemplates(cwd);
     const activeName = this.context.workspaceState.get<string>(ACTIVE_KEY);
 
-    // ۱. اگر نام فعال معتبر است، همان را برگردان
+    // 1. If the active name is valid, return the same
     if (activeName) {
       const found = all.find((c) => c.name === activeName);
       if (found) return found;
     }
 
-    // ۲. اگر حداقل یک قالب در مخزن وجود دارد، اولین آن را انتخاب کن
+    // 2. If there is at least one template in the repository, select the first one
     if (workspaceTemplates.length > 0) {
-      // اولین قالب workspace (چون در getAllConfigs ابتدا workspace‌ها درج شده‌اند)
+      // First workspace template (because workspaces are included first in getAllConfigs)
       return all[0];
     }
 
-    // ۳. هیچ قالب مخزنی وجود ندارد:
-    //    اولویت با قالب built-in با نام "Conventional" یا "Conventional Commits" است
+    //3. There is no repository template: The built-in template named "Conventional" or "Conventional Commits" is preferred.
     const conventional = all.find(
       (c) => c.name === "Conventional" || c.name === "Conventional Commits",
     );
     if (conventional) return conventional;
 
-    // ۴. در غیر این صورت اولین قالب built-in موجود (یا fallback)
+    // 4. Otherwise the first available built-in template (or fallback)
     if (all.length > 0) return all[0];
     return loadDefaultConfig(this.extensionPath);
   }
@@ -203,7 +202,7 @@ export class ConfigManager {
 
     const active = this.context.workspaceState.get<string>(ACTIVE_KEY);
     if (active === name) {
-      // به قالب پیش‌فرض برگرد
+      // Return to default format
       await this.setActiveConfig(this.getActiveConfig(cwd).name);
     }
   }
