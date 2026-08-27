@@ -1,0 +1,14 @@
+{
+  "gitCommitMessageEditor.autoFillSignedOffBy": false,
+  "gitCommitMessageEditor.autoGitmoji": false,
+  "gitCommitMessageEditor.scopes": [
+    "templates",
+    "config",
+    "panels",
+    "utils",
+    "schemas",
+    "media",
+    "docs"
+  ],
+  "gitCommitMessageEditor.types": []
+}

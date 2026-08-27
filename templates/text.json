@@ -1,0 +1,24 @@
+{
+  "configVersion": "1",
+  "name": "Text",
+  "template": ["{subject}", "", "{body}"],
+  "tokens": [
+    {
+      "label": "Subject",
+      "name": "subject",
+      "type": "text",
+      "required": true,
+      "maxLength": 72
+    },
+    {
+      "label": "Body",
+      "name": "body",
+      "type": "text",
+      "multiline": true,
+      "lines": 6,
+      "maxLines": 20,
+      "maxLineLength": 100,
+      "description": "Full description of the changes and why"
+    }
+  ]
+}

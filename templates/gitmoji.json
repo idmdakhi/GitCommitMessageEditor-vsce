@@ -1,0 +1,74 @@
+{
+  "configVersion": "1",
+  "name": "Gitmoji",
+  "template": ["{gitmoji} {subject}", "", "{body}"],
+  "tokens": [
+    {
+      "label": "Gitmoji",
+      "name": "gitmoji",
+      "type": "enum",
+      "combobox": true,
+      "description": "Emoji indicating the type of change",
+      "required": true,
+      "options": [
+        {
+          "label": "✨",
+          "description": "New feature"
+        },
+        {
+          "label": "🐛",
+          "description": "Bug fix"
+        },
+        {
+          "label": "📝",
+          "description": "Documentation"
+        },
+        {
+          "label": "♻️",
+          "description": "Refactor"
+        },
+        {
+          "label": "⚡️",
+          "description": "Performance"
+        },
+        {
+          "label": "✅",
+          "description": "Tests"
+        },
+        {
+          "label": "🔧",
+          "description": "Configuration"
+        },
+        {
+          "label": "🔥",
+          "description": "Remove code/files"
+        },
+        {
+          "label": "🚀",
+          "description": "Deploy"
+        },
+        {
+          "label": "💄",
+          "description": "UI / style"
+        }
+      ]
+    },
+    {
+      "label": "Subject",
+      "name": "subject",
+      "type": "text",
+      "required": true,
+      "maxLength": 72
+    },
+    {
+      "label": "Body",
+      "name": "body",
+      "type": "text",
+      "multiline": true,
+      "lines": 4,
+      "maxLines": 20,
+      "maxLineLength": 100,
+      "description": "Full description of the changes and why"
+    }
+  ]
+}

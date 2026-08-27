@@ -1,0 +1,2179 @@
+// @ts-nocheck
+(function () {
+  const vscode = acquireVsCodeApi();
+  const app = document.getElementById("app");
+
+  /** @type {Record<string, string | boolean>} */
+  let values = {};
+
+  /** @type {Record<string, boolean>} */
+  let conditionalEnabled = {};
+
+  let config = null;
+  let settings = {};
+  let recentCommits = [];
+  let activeConfigName = "";
+  let configSource = "";
+  let hasProjectConfig = false;
+
+  // اگر فعال باشد، انتخاب هر Type به‌صورت خودکار ایموجی متناظرش را هم
+  // در Gitmoji قرار می‌دهد (پیش‌فرض: فعال)
+  let autoGitmoji = true;
+
+  // ===== پشتیبانی از چند مخزن =====
+  let repos = [];
+  let currentRepoIndex = 0;
+
+  let repoInfo = {
+    name: "unknown",
+    branch: "detached",
+    stagedCount: 0,
+  };
+
+  // جلوگیری از ثبت چندباره listenerهای سراسری
+  let globalListenersBound = false;
+
+  // وضعیت عملیات در حال اجرا
+  const pendingActions = {
+    autoSuggest: false,
+    aiDraft: false,
+  };
+
+  // ===== دریافت پیام‌های VS Code =====
+  window.addEventListener("message", handleMessage);
+
+  function handleMessage(event) {
+    const msg = event.data || {};
+
+    switch (msg.type) {
+      case "init":
+        initializeState(msg);
+        render();
+        break;
+
+      case "repoInfo":
+        updateRepoState(msg);
+        renderRepoBar();
+        break;
+
+      case "repoChanged":
+        handleRepoChanged(msg);
+        break;
+
+      case "autoSuggestions":
+        pendingActions.autoSuggest = false;
+        applyAutoSuggestions(msg.suggestions || {});
+        hideSpinner("btn-autofill", "⚡ Suggestions");
+        break;
+
+      case "aiDraftResult":
+        pendingActions.aiDraft = false;
+        applyAiDraft(msg.draft || {});
+        hideSpinner("btn-ai", "✨ AI Draft");
+        break;
+
+      case "aiDraftError":
+        pendingActions.aiDraft = false;
+        showAiStatus(msg.message || "AI draft failed.", true);
+        hideSpinner("btn-ai", "✨ AI Draft");
+        break;
+
+      case "loadRawMessage":
+        loadRawIntoSubjectBody(msg.message || "");
+        break;
+
+      case "gitIdentityResult":
+        applyGitIdentityToSignedOffBy(msg.value || "", msg.message || "");
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  function initializeState(msg) {
+    config = msg.config || null;
+
+    activeConfigName = msg.activeConfigName || config?.name || "";
+
+    configSource = msg.configSource || "";
+    hasProjectConfig = !!msg.hasProjectConfig;
+
+    settings = {
+      ...msg.settings,
+      scopes: Array.isArray(msg.settings?.scopes) ? msg.settings.scopes : [],
+      types: Array.isArray(msg.settings?.types) ? msg.settings.types : [],
+      autoGitmoji:
+        msg.settings?.autoGitmoji !== undefined
+          ? msg.settings.autoGitmoji
+          : true,
+    };
+
+    recentCommits = Array.isArray(msg.recentCommits) ? msg.recentCommits : [];
+
+    if (msg.draft) {
+      values = msg.draft.values || {};
+      conditionalEnabled = msg.draft.conditionalEnabled || {};
+      autoGitmoji =
+        typeof msg.draft.autoGitmoji === "boolean"
+          ? msg.draft.autoGitmoji
+          : true;
+    } else {
+      values = {};
+      conditionalEnabled = {};
+      autoGitmoji = settings.autoGitmoji;
+    }
+
+    updateRepoState(msg.repoInfo || {});
+    ensureEnabledForFilledOptionals();
+  }
+
+  function updateRepoState(info) {
+    repos = Array.isArray(info.repos) ? info.repos : [];
+
+    const requestedIndex = Number(info.currentIndex);
+
+    currentRepoIndex =
+      Number.isInteger(requestedIndex) &&
+      requestedIndex >= 0 &&
+      requestedIndex < repos.length
+        ? requestedIndex
+        : 0;
+
+    repoInfo = info.currentInfo ||
+      repos[currentRepoIndex] || {
+        name: "unknown",
+        branch: "detached",
+        stagedCount: 0,
+      };
+  }
+
+  function handleRepoChanged(msg) {
+    if (!msg.success) {
+      return;
+    }
+
+    vscode.postMessage({
+      type: "ready",
+    });
+  }
+
+  // ===== درخواست اطلاعات اولیه =====
+  vscode.postMessage({
+    type: "ready",
+  });
+
+  // =====================================================
+  // Helpers
+  // =====================================================
+
+  function isCollapsible(token) {
+    if (!token) return false;
+    if (token.required) return false;
+    if (token.type === "boolean") return false;
+
+    return true;
+  }
+
+  function isFieldEnabled(token) {
+    if (!token) return false;
+
+    if (!isCollapsible(token)) {
+      return true;
+    }
+
+    return !!conditionalEnabled[token.name];
+  }
+
+  function ensureEnabledForFilledOptionals() {
+    if (!config?.tokens) return;
+
+    for (const token of config.tokens) {
+      if (!isCollapsible(token)) continue;
+
+      const value = values[token.name];
+
+      const hasValue =
+        value !== undefined && value !== null && String(value).trim() !== "";
+
+      if (hasValue) {
+        conditionalEnabled[token.name] = true;
+      }
+    }
+  }
+
+  function findToken(name) {
+    return config?.tokens?.find((token) => token.name === name);
+  }
+
+  function fieldValue(name) {
+    const value = values[name];
+
+    return value === undefined || value === null ? "" : String(value);
+  }
+
+  function setValue(name, value) {
+    values[name] = value;
+    saveDraft();
+  }
+
+  function saveDraft() {
+    vscode.postMessage({
+      type: "saveDraft",
+      draft: {
+        values,
+        conditionalEnabled,
+        autoGitmoji,
+      },
+    });
+  }
+
+  function issueList(raw) {
+    return String(raw || "")
+      .split(/[,\s]+/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((item) => (item.startsWith("#") ? item : `#${item}`))
+      .join(", ");
+  }
+
+  // =====================================================
+  // Suggestions / AI
+  // =====================================================
+
+  function applyAutoSuggestions(suggestions) {
+    if (!suggestions || typeof suggestions !== "object") {
+      return;
+    }
+
+    let changed = false;
+
+    for (const [key, suggestion] of Object.entries(suggestions)) {
+      const token = findToken(key);
+
+      if (!token) continue;
+
+      const currentValue = fieldValue(key);
+
+      if (!currentValue.trim() && suggestion != null) {
+        values[key] = suggestion;
+
+        if (isCollapsible(token)) {
+          conditionalEnabled[key] = true;
+        }
+
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      saveDraft();
+      render();
+    }
+  }
+
+  // پاسخ درخواست «دریافت از Git» برای فیلد Signed-off-by
+  function applyGitIdentityToSignedOffBy(value, errorMessage) {
+    const gitIdentityBtn = document.getElementById("fetch-git-identity");
+
+    if (gitIdentityBtn) {
+      gitIdentityBtn.disabled = false;
+      gitIdentityBtn.textContent = "⇩ Git";
+    }
+
+    if (!value) {
+      showAiStatus(
+        errorMessage || "Could not read user.name/user.email from Git config.",
+        true,
+      );
+      return;
+    }
+
+    const token = findToken("signedOffBy");
+
+    if (!token) return;
+
+    values.signedOffBy = value;
+    conditionalEnabled.signedOffBy = true;
+
+    saveDraft();
+    render();
+  }
+
+  function applyAiDraft(draft) {
+    let changed = false;
+
+    for (const key of ["type", "scope", "subject", "body"]) {
+      const token = findToken(key);
+
+      if (!token) continue;
+
+      if (
+        draft[key] !== undefined &&
+        draft[key] !== null &&
+        String(draft[key]).trim() !== ""
+      ) {
+        values[key] = draft[key];
+
+        if (isCollapsible(token)) {
+          conditionalEnabled[key] = true;
+        }
+
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      saveDraft();
+    }
+
+    render();
+
+    showAiStatus(
+      changed
+        ? "AI draft applied."
+        : "Active template has no compatible fields to apply.",
+      !changed,
+    );
+  }
+
+  function loadRawIntoSubjectBody(raw) {
+    if (!findToken("subject")) return;
+
+    const lines = String(raw || "").split("\n");
+
+    let header = lines[0] || "";
+
+    // اگر خط اول با یک ایموجی شروع شده (مثلاً «✨ feat: ...»)، آن را
+    // جدا کرده و در Gitmoji قرار می‌دهیم
+    const emojiMatch = header.match(/^(\p{Extended_Pictographic}\uFE0F?)\s+/u);
+
+    if (emojiMatch && findToken("gitmoji")) {
+      values.gitmoji = emojiMatch[1];
+      conditionalEnabled.gitmoji = true;
+      header = header.slice(emojiMatch[0].length);
+    }
+
+    const match = header.match(/^([a-z]+)(\(([^)]+)\))?:\s*(.*)$/i);
+
+    if (match && findToken("type")) {
+      values.type = match[1];
+
+      if (findToken("scope")) {
+        values.scope = match[3] || "";
+
+        if (values.scope) {
+          conditionalEnabled.scope = true;
+        }
+      }
+
+      values.subject = match[4] || "";
+    } else {
+      values.subject = header;
+    }
+
+    // بقیه‌ی خط‌ها (بدنه + ارجاعات ایشو + trailerها) را جدا می‌کنیم:
+    // خط‌هایی که با پیشوند شناخته‌شده‌ی یک فیلد (مثل «Signed-off-by: »،
+    // «Closes: » و ...) شروع می‌شوند، در همان فیلد قرار می‌گیرند — نه Body
+    const restLines = lines.slice(1);
+
+    const prefixTokens = (config.tokens || [])
+      .filter(
+        (token) =>
+          typeof token.prefix === "string" &&
+          token.prefix.trim() !== "" &&
+          !["type", "subject", "scope"].includes(token.name),
+      )
+      .sort((a, b) => b.prefix.length - a.prefix.length);
+
+    const bodyLines = [];
+    const trailerChunks = {}; // name -> array of matched occurrences (strings)
+    let currentTrailerName = null;
+    let inTrailerBlock = false;
+
+    restLines.forEach((line) => {
+      const trimmedStart = line.replace(/^\s+/, "");
+
+      const matchedToken = prefixTokens.find((token) =>
+        trimmedStart.startsWith(token.prefix),
+      );
+
+      if (matchedToken) {
+        inTrailerBlock = true;
+        currentTrailerName = matchedToken.name;
+
+        if (!trailerChunks[currentTrailerName]) {
+          trailerChunks[currentTrailerName] = [];
+        }
+
+        trailerChunks[currentTrailerName].push(
+          trimmedStart.slice(matchedToken.prefix.length).trim(),
+        );
+
+        return;
+      }
+
+      if (inTrailerBlock) {
+        if (line.trim() === "") return; // خط خالی داخل بلوک trailer نادیده گرفته می‌شود
+
+        // ادامه‌ی خط trailer قبلی (مثلاً پاراگراف چندخطی BREAKING CHANGE)
+        if (currentTrailerName && trailerChunks[currentTrailerName]?.length) {
+          const idx = trailerChunks[currentTrailerName].length - 1;
+
+          trailerChunks[currentTrailerName][idx] += ` ${line.trim()}`;
+        }
+
+        return;
+      }
+
+      bodyLines.push(line);
+    });
+
+    Object.keys(trailerChunks).forEach((name) => {
+      const token = findToken(name);
+
+      if (!token) return;
+
+      const occurrences = trailerChunks[name].filter((v) => v !== "");
+
+      if (!occurrences.length) return;
+
+      values[name] = token.perLine
+        ? occurrences.join("\n")
+        : occurrences.join(", ");
+
+      conditionalEnabled[name] = true;
+    });
+
+    if (findToken("body")) {
+      const bodyText = bodyLines.join("\n").trim();
+
+      values.body = bodyText;
+      conditionalEnabled.body = !!bodyText;
+    }
+
+    ensureEnabledForFilledOptionals();
+
+    saveDraft();
+    render();
+  }
+
+  // =====================================================
+  // Template Engine
+  // =====================================================
+
+  function computeTokenOutput(token) {
+    if (!token) return "";
+
+    // اگر «Auto Gitmoji» غیرفعال است، Gitmoji در پیام نهایی درج نمی‌شود
+    // (حتی اگر قبلاً مقداری برایش ثبت شده باشد)
+    if (token.name === "gitmoji" && !autoGitmoji) {
+      return "";
+    }
+
+    if (isCollapsible(token) && !conditionalEnabled[token.name]) {
+      return "";
+    }
+
+    if (token.type === "boolean") {
+      const checked = !!values[token.name];
+
+      if (!checked) return "";
+
+      return (token.prefix || "") + (token.value || "") + (token.suffix || "");
+    }
+
+    const raw = fieldValue(token.name);
+
+    if (!raw.trim()) {
+      return "";
+    }
+
+    if (token.issueList) {
+      return (token.prefix || "") + issueList(raw) + (token.suffix || "");
+    }
+
+    if (token.perLine) {
+      return raw
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => (token.prefix || "") + line + (token.suffix || ""))
+        .join("\n");
+    }
+
+    return (token.prefix || "") + raw.trim() + (token.suffix || "");
+  }
+
+  function renderTemplateLine(line) {
+    return String(line || "").replace(/\{(\w+)\}/g, (_, name) => {
+      const token = findToken(name);
+
+      return token ? computeTokenOutput(token) : "";
+    });
+  }
+
+  function buildMessage() {
+    if (!config?.template) {
+      return "";
+    }
+
+    const collected = [];
+
+    for (const templateLine of config.template) {
+      if (templateLine.trim() === "") {
+        collected.push("");
+        continue;
+      }
+
+      const rendered = renderTemplateLine(templateLine);
+
+      if (rendered.trim()) {
+        collected.push(rendered);
+      }
+    }
+
+    const output = [];
+
+    for (const line of collected) {
+      if (line === "") {
+        if (output.length === 0 || output[output.length - 1] === "") {
+          continue;
+        }
+
+        output.push("");
+      } else {
+        output.push(line);
+      }
+    }
+
+    while (output.length && output[output.length - 1] === "") {
+      output.pop();
+    }
+
+    return output.join("\n");
+  }
+
+  // =====================================================
+  // Validation
+  // =====================================================
+
+  function computeWarnings() {
+    if (!config?.tokens) return [];
+
+    const warnings = [];
+
+    const subjectToken = findToken("subject");
+
+    if (subjectToken && isFieldEnabled(subjectToken)) {
+      const subject = fieldValue("subject");
+
+      const maxSubject =
+        subjectToken.maxLength || settings.maxSubjectLength || 72;
+
+      if (subject.length > maxSubject) {
+        warnings.push({
+          field: "subject",
+          message: `Subject is longer than ${maxSubject} characters.`,
+        });
+      }
+
+      if (/[.]\s*$/.test(subject.trim())) {
+        warnings.push({
+          field: "subject",
+          message: "Subject should not end with a period.",
+        });
+      }
+
+      if (subject.trim() && /^[A-Z]/.test(subject.trim())) {
+        warnings.push({
+          field: "subject",
+          message: "Subject should not start with a capital letter.",
+        });
+      }
+
+      if (
+        /^(added|fixed|changed|removed|updated|created|deleted)\b/i.test(
+          subject.trim(),
+        )
+      ) {
+        warnings.push({
+          field: "subject",
+          message: "Use imperative mood (add, not added).",
+        });
+      }
+    }
+
+    for (const token of config.tokens) {
+      if (!isFieldEnabled(token)) continue;
+
+      const value = fieldValue(token.name);
+
+      if (
+        token.multiline &&
+        token.maxLineLength &&
+        value.split("\n").some((line) => line.length > token.maxLineLength)
+      ) {
+        warnings.push({
+          field: token.name,
+          message:
+            `One or more lines in “${token.label}” exceed ` +
+            `${token.maxLineLength} characters.`,
+        });
+      }
+
+      if (token.required) {
+        const hasValue =
+          token.type === "boolean" ? !!values[token.name] : value.trim() !== "";
+
+        if (!hasValue) {
+          warnings.push({
+            field: token.name,
+            message: `Required field “${token.label}” is empty.`,
+          });
+        }
+      }
+    }
+
+    return warnings;
+  }
+
+  function validateField(token) {
+    if (!token) return;
+
+    const element = document.getElementById(`f-${token.name}`);
+
+    if (!element) return;
+
+    const fieldDiv = element.closest(".field");
+
+    if (!fieldDiv) return;
+
+    let valid = true;
+    let message = "";
+
+    if (token.required) {
+      const value =
+        token.type === "boolean"
+          ? !!values[token.name]
+          : fieldValue(token.name).trim();
+
+      if (!value) {
+        valid = false;
+        message = `“${token.label}” is required.`;
+      }
+    }
+
+    if (valid && token.maxLength && token.type !== "boolean") {
+      const length = fieldValue(token.name).length;
+
+      if (length > token.maxLength) {
+        valid = false;
+
+        message = `Exceeds max length (${length}/${token.maxLength}).`;
+      }
+    }
+
+    if (valid && token.name === "subject") {
+      const subject = fieldValue(token.name).trim();
+
+      if (subject) {
+        if (/[.]\s*$/.test(subject)) {
+          valid = false;
+          message = "Subject should not end with a period.";
+        } else if (/^[A-Z]/.test(subject)) {
+          valid = false;
+          message = "Subject should not start with a capital letter.";
+        } else if (
+          /^(added|fixed|changed|removed|updated|created|deleted)\b/i.test(
+            subject,
+          )
+        ) {
+          valid = false;
+          message = "Use imperative mood (add, not added).";
+        }
+      }
+    }
+
+    fieldDiv.classList.toggle("invalid", !valid);
+
+    let messageElement = fieldDiv.querySelector(".validation-msg");
+
+    if (!messageElement && !valid) {
+      messageElement = document.createElement("div");
+
+      messageElement.className = "validation-msg";
+
+      fieldDiv.appendChild(messageElement);
+    }
+
+    if (messageElement) {
+      messageElement.textContent = message;
+
+      messageElement.style.display = valid ? "none" : "block";
+    }
+  }
+
+  // =====================================================
+  // UI Helpers
+  // =====================================================
+
+  function showAiStatus(text, isError = false) {
+    const element = document.getElementById("ai-status");
+
+    if (!element) return;
+
+    element.textContent = text;
+
+    element.className = `ai-status${isError ? " error" : ""}`;
+  }
+
+  function renderRepoBar() {
+    const existing = document.querySelector(".repo-info-bar");
+
+    if (existing) {
+      existing.remove();
+    }
+
+    if (!repos.length) {
+      return;
+    }
+
+    const bar = document.createElement("div");
+
+    bar.className = "repo-info-bar";
+
+    const staged =
+      repoInfo.stagedCount !== undefined
+        ? `<span class="staged-count">
+             📌 ${Number(repoInfo.stagedCount) || 0} staged
+           </span>`
+        : "";
+
+    const selector =
+      repos.length > 1
+        ? `
+          <select id="repo-select">
+            ${repos
+              .map(
+                (repo, index) => `
+                  <option
+                    value="${index}"
+                    ${index === currentRepoIndex ? "selected" : ""}
+                  >
+                    ${escapeHtml(repo.name || `Repository ${index + 1}`)}
+                  </option>
+                `,
+              )
+              .join("")}
+          </select>
+        `
+        : "";
+
+    bar.innerHTML = `
+      <span class="repo-name">
+        📁 ${escapeHtml(repoInfo.name || "unknown")}
+      </span>
+
+      <span class="branch-name">
+        🌿 ${escapeHtml(repoInfo.branch || "detached")}
+      </span>
+
+      ${staged}
+      ${selector}
+    `;
+
+    const headerBlock = document.querySelector(".header-block");
+
+    if (headerBlock?.parentNode) {
+      headerBlock.parentNode.insertBefore(bar, headerBlock);
+    } else {
+      app.prepend(bar);
+    }
+
+    const select = document.getElementById("repo-select");
+
+    if (select) {
+      select.addEventListener("change", (event) => {
+        const index = Number.parseInt(event.target.value, 10);
+
+        if (Number.isInteger(index) && index !== currentRepoIndex) {
+          vscode.postMessage({
+            type: "switchRepo",
+            index,
+          });
+        }
+      });
+    }
+  }
+
+  function renderCollapsible(title, contentHtml, initiallyOpen = false) {
+    return `
+      <div class="collapsible-section">
+        <div
+          class="collapsible-header"
+          data-collapsible-toggle
+        >
+          <span class="chevron ${initiallyOpen ? "open" : ""}">▶</span>
+
+          ${escapeHtml(title)}
+        </div>
+
+        <div class="collapsible-body ${initiallyOpen ? "open" : ""}">
+          ${contentHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderToolbar() {
+    const primaryButtons = [
+      {
+        id: "btn-insert",
+        label: "Insert",
+        cls: "primary",
+      },
+      {
+        id: "btn-copy",
+        label: "Copy",
+        cls: "secondary",
+      },
+      {
+        id: "btn-reset",
+        label: "Reset",
+        cls: "secondary",
+      },
+      {
+        id: "btn-autofill",
+        label: "⚡ Suggestions",
+        cls: "secondary",
+      },
+    ];
+
+    const moreButtons = [
+      {
+        id: "btn-ai",
+        label: "✨ AI Draft",
+      },
+      {
+        id: "btn-config",
+        label: "⚙ Template",
+      },
+      {
+        id: "btn-git-template",
+        label: "📌 Git Template",
+      },
+      {
+        id: "btn-amend",
+        label: "🔄 Amend Last",
+      },
+      {
+        id: "btn-undo",
+        label: "↩️ Undo Insert",
+      },
+      {
+        id: "btn-project-config",
+        label: "📁 Repo Config",
+      },
+    ];
+
+    return `
+      <div class="toolbar">
+        ${primaryButtons
+          .map(
+            (button) => `
+              <button
+                class="${button.cls}"
+                id="${button.id}"
+              >
+                ${button.label}
+              </button>
+            `,
+          )
+          .join("")}
+
+        <div class="more-menu">
+          <button
+            class="secondary"
+            id="more-toggle"
+            type="button"
+          >
+            ⋮ More
+          </button>
+
+          <div
+            class="dropdown-content"
+            id="more-dropdown"
+          >
+            ${moreButtons
+              .map(
+                (button) => `
+                  <button
+                    id="${button.id}"
+                    type="button"
+                  >
+                    ${button.label}
+                  </button>
+                `,
+              )
+              .join("")}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function showSpinner(buttonId) {
+    const button = document.getElementById(buttonId);
+
+    if (!button) return;
+
+    button.disabled = true;
+
+    button.innerHTML = `
+      <span class="spinner"></span>
+      Loading...
+    `;
+  }
+
+  function hideSpinner(buttonId, originalLabel) {
+    const button = document.getElementById(buttonId);
+
+    if (!button) return;
+
+    button.disabled = false;
+    button.textContent = originalLabel;
+  }
+
+  // =====================================================
+  // Render
+  // =====================================================
+
+  function render() {
+    if (!config) return;
+
+    const message = buildMessage();
+    const warnings = computeWarnings();
+
+    const lines = message ? message.split("\n") : [];
+
+    const gutterHtml = lines.length
+      ? lines.map((_, index) => `<div>${index + 1}</div>`).join("")
+      : "<div>1</div>";
+
+    const linesHtml = lines.length
+      ? lines
+          .map(
+            (line, index) =>
+              `<div class="line${index === 0 ? " subject" : ""}">${
+                escapeHtml(line) || "&nbsp;"
+              }</div>`,
+          )
+          .join("")
+      : `
+          <div class="line empty-msg">
+            Your commit message will appear here…
+          </div>
+        `;
+
+    app.innerHTML = `
+      <div class="page">
+        <div class="dashboard">
+          <div
+            class="dashboard-row"
+            id="chip-row"
+          ></div>
+
+          <div
+            class="dashboard-row"
+            style="margin-top:4px;"
+          >
+            <span
+              class="progress-text"
+              id="progress-text"
+            ></span>
+          </div>
+
+          ${
+            warnings.length
+              ? `
+                <div
+                  class="warnings"
+                  id="warnings-line"
+                >
+                  ⚠ ${warnings.length}
+                  warning${warnings.length > 1 ? "s" : ""} — click to jump
+                </div>
+              `
+              : ""
+          }
+        </div>
+
+        <div class="header-block">
+          <h1>
+            Commit Message Editor
+            <span class="template-name">
+              — ${escapeHtml(activeConfigName)}
+            </span>
+          </h1>
+
+          ${
+            configSource
+              ? `
+                <span class="source-badge">
+                  ${escapeHtml(configSource)}
+                  ${
+                    hasProjectConfig
+                      ? `
+                        <span class="repo">
+                          repo
+                        </span>
+                      `
+                      : ""
+                  }
+                </span>
+              `
+              : ""
+          }
+        </div>
+
+        ${renderToolbar()}
+
+        <div
+          class="ai-status"
+          id="ai-status"
+        ></div>
+
+        <div class="workspace">
+          <div class="workspace-form">
+            <div id="form"></div>
+          </div>
+
+          <div class="workspace-preview">
+            <div class="section-title">
+              Message preview
+            </div>
+
+            <div class="preview-shell">
+              <div class="preview-tab">
+                <span class="dot"></span>
+                .git / COMMIT_EDITMSG
+              </div>
+
+              <div class="preview-code">
+                <div class="preview-gutter">
+                  ${gutterHtml}
+                </div>
+
+                <div
+                  class="preview-lines"
+                  id="preview-lines"
+                >
+                  ${linesHtml}
+                </div>
+              </div>
+
+              <div class="preview-footer">
+                <span id="line-count">
+                  ${lines.length || 0}
+                  line${(lines.length || 0) === 1 ? "" : "s"}
+                </span>
+
+                <span id="char-count">
+                  ${message.length} chars
+                </span>
+              </div>
+            </div>
+
+            ${
+              recentCommits.length
+                ? renderCollapsible(
+                    `Recent commits (${recentCommits.length})`,
+                    `<div id="recent-commits"></div>`,
+                    false,
+                  )
+                : ""
+            }
+          </div>
+        </div>
+      </div>
+    `;
+
+    renderChips(warnings);
+    renderForm();
+    renderRepoBar();
+
+    if (recentCommits.length) {
+      renderRecentCommits();
+    }
+
+    bindToolbar();
+    bindCollapsibles();
+
+    if (!globalListenersBound) {
+      bindGlobalListeners();
+      globalListenersBound = true;
+    }
+
+    requestAnimationFrame(() => {
+      config.tokens.forEach(validateField);
+    });
+  }
+
+  // =====================================================
+  // Dashboard
+  // =====================================================
+
+  function renderChips(warnings) {
+    const row = document.getElementById("chip-row");
+
+    const progressElement = document.getElementById("progress-text");
+
+    if (!row || !progressElement) return;
+
+    let filled = 0;
+    let totalVisible = 0;
+
+    row.innerHTML = config.tokens
+      .map((token) => {
+        const enabled = isFieldEnabled(token);
+
+        if (!token.required && !enabled && token.type !== "boolean") {
+          return "";
+        }
+
+        totalVisible++;
+
+        const hasValue =
+          token.type === "boolean"
+            ? !!values[token.name]
+            : enabled && fieldValue(token.name).trim() !== "";
+
+        let className = "empty";
+
+        if (hasValue) {
+          className = "ok";
+          filled++;
+        } else if (token.required) {
+          className = "warn";
+        }
+
+        return `
+          <span
+            class="chip ${className}"
+            data-field="${escapeAttr(token.name)}"
+          >
+            ${escapeHtml(token.label)}
+          </span>
+        `;
+      })
+      .join("");
+
+    progressElement.textContent = `${filled} of ${
+      totalVisible || config.tokens.length
+    } sections`;
+
+    row.querySelectorAll(".chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        const name = chip.dataset.field;
+
+        const token = findToken(name);
+
+        if (token && isCollapsible(token) && !conditionalEnabled[name]) {
+          conditionalEnabled[name] = true;
+
+          saveDraft();
+          render();
+
+          requestAnimationFrame(() => {
+            document.getElementById(`f-${name}`)?.focus();
+          });
+
+          return;
+        }
+
+        document.getElementById(`f-${name}`)?.focus();
+      });
+    });
+
+    const warningLine = document.getElementById("warnings-line");
+
+    if (warningLine && warnings.length) {
+      warningLine.title = warnings.map((warning) => warning.message).join("\n");
+
+      warningLine.addEventListener("click", () => {
+        const firstWarning = warnings[0];
+
+        if (!firstWarning) return;
+
+        const token = findToken(firstWarning.field);
+
+        if (token && isCollapsible(token) && !conditionalEnabled[token.name]) {
+          conditionalEnabled[token.name] = true;
+
+          saveDraft();
+          render();
+
+          requestAnimationFrame(() => {
+            document.getElementById(`f-${token.name}`)?.focus();
+          });
+
+          return;
+        }
+
+        document.getElementById(`f-${firstWarning.field}`)?.focus();
+      });
+    }
+  }
+
+  // =====================================================
+  // Form
+  // =====================================================
+
+  function renderForm() {
+    const formElement = document.getElementById("form");
+    if (!formElement) return;
+    const hasTypeToken = config.tokens.some((t) => t.name === "type");
+
+    const core = [];
+    const pillFields = [];
+    const bodyFields = [];
+    const trailerFields = [];
+
+    for (const token of config.tokens) {
+      // Gitmoji دیگر جعبه‌ی جدای خودش را ندارد؛ داخل گرید Type و بالای
+      // هر ستون (مثلاً ✨ بالای feat) نمایش داده می‌شود
+      if (token.name === "gitmoji" && hasTypeToken) {
+        continue;
+      }
+
+      if (token.required || token.type === "boolean") {
+        core.push(token);
+        continue;
+      }
+
+      // فیلدهای متنی تک‌خطی (Scope، Closes، Refs، Signed-off-by و ...)
+      // به سبک فشرده‌ی «Issue references» در یک گرید نمایش داده می‌شوند
+      if (token.type === "text" && !token.multiline) {
+        pillFields.push(token);
+        continue;
+      }
+
+      // Body در تمام عرض می‌ماند؛ بقیه‌ی فیلدهای چندخطی (BREAKING CHANGE،
+      // Co-authored-by، Reviewed-by، Tested-by، Acked-by، Reported-by)
+      // در یک شبکه‌ی دوستونه کنار هم قرار می‌گیرند
+      if (token.name === "body") {
+        bodyFields.push(token);
+      } else {
+        trailerFields.push(token);
+      }
+    }
+
+    let html = `<div class="core-fields">${core.map(renderField).join("")}</div>`;
+
+    if (pillFields.length) {
+      html += renderDetailGrid(pillFields);
+    }
+
+    if (bodyFields.length) {
+      html += bodyFields.map(renderField).join("");
+    }
+
+    if (trailerFields.length) {
+      html += `
+        <div class="card-fields-grid">
+          ${trailerFields.map(renderField).join("")}
+        </div>
+      `;
+    }
+
+    formElement.innerHTML = html;
+
+    config.tokens.forEach(bindField);
+
+    const autoGitmojiToggle = document.getElementById("auto-gitmoji-toggle");
+
+    if (autoGitmojiToggle) {
+      autoGitmojiToggle.addEventListener("change", () => {
+        autoGitmoji = autoGitmojiToggle.checked;
+        // با غیرفعال‌کردن، هر ایموجی قبلاً ثبت‌شده هم پاک می‌شود تا در
+        // پیام نهایی درج نشود
+        if (!autoGitmoji) {
+          values.gitmoji = "";
+          conditionalEnabled.gitmoji = false;
+        } else {
+          // با فعال‌کردن، اگر Type ی انتخاب شده باشد، ایموجی متناظرش
+          //  بلافاصله اعمال شود (بدون نیاز به کلیک دوباره روی Type)
+          const currentType = fieldValue("type").trim().toLowerCase();
+          if (currentType) {
+            const emojiMap = buildTypeEmojiMap();
+            const emoji = emojiMap[currentType] || "";
+            if (emoji) {
+              values.gitmoji = emoji;
+              conditionalEnabled.gitmoji = true;
+            }
+          }
+        }
+
+        saveDraft();
+        render();
+      });
+    }
+
+    const fetchGitIdentityBtn = document.getElementById("fetch-git-identity");
+
+    if (fetchGitIdentityBtn) {
+      fetchGitIdentityBtn.addEventListener("click", () => {
+        fetchGitIdentityBtn.disabled = true;
+        fetchGitIdentityBtn.textContent = "…";
+
+        vscode.postMessage({ type: "fetchGitIdentity" });
+      });
+    }
+  }
+
+  // =====================================================
+  // Compact detail grid — every optional single-line field
+  // (issue references, scope, signed-off-by, ...) rendered
+  // in the same pill style, with no enable/disable checkbox
+  // =====================================================
+
+  function renderDetailGrid(tokens) {
+    const cells = tokens
+      .map((token) => {
+        const value = fieldValue(token.name);
+        const active = !!value.trim();
+
+        // اسکوپ به‌خاطر داشتن چیپ‌های ذخیره‌شده و دکمه‌ی ذخیره،
+        // به‌صورت عمودی (ستونی) و در تمام عرض گرید نمایش داده می‌شود
+        const needsExtra = token.name === "scope";
+
+        if (needsExtra) {
+          return `
+            <div
+              class="issue-cell issue-cell--stack ${active ? "active" : ""}"
+              title="${escapeAttr(token.description || "")}"
+            >
+              <div class="issue-cell-row">
+                <span class="issue-cell-label">
+                  ${escapeHtml(token.label)}
+                </span>
+
+                <input
+                  type="text"
+                  id="f-${escapeAttr(token.name)}"
+                  class="issue-cell-input"
+                  placeholder="${escapeAttr(token.description || "")}"
+                  value="${escapeAttr(value)}"
+                />
+                ${renderScopeSaveButton(token)}
+              </div>
+
+              ${renderTokenFreqChips(token)}
+            </div>
+          `;
+        }
+
+        const isSignedOffBy = token.name === "signedOffBy";
+
+        return `
+          <div
+            class="issue-cell ${active ? "active" : ""} ${
+              isSignedOffBy ? "issue-cell--wide" : ""
+            }"
+            title="${escapeAttr(token.description || "")}"
+          >
+            <span class="issue-cell-label">
+              ${escapeHtml(token.label)}
+            </span>
+
+            <input
+              type="text"
+              id="f-${escapeAttr(token.name)}"
+              class="issue-cell-input"
+              placeholder="${escapeAttr(token.description || "e.g. value")}"
+              value="${escapeAttr(value)}"
+            />
+
+            ${
+              isSignedOffBy
+                ? `
+                  <button
+                    type="button"
+                    class="issue-cell-git-btn"
+                    id="fetch-git-identity"
+                    title="دریافت نام و ایمیل از تنظیمات Git (user.name / user.email)"
+                  >
+                    ⇩ Git
+                  </button>
+                `
+                : ""
+            }
+          </div>
+        `;
+      })
+      .join("");
+
+    return `
+      <div class="field-block">
+        <div class="issue-group-title">
+          Additional details
+          <span class="hint">${tokens.map((token) => escapeHtml(token.label)).join(" · ")}</span>
+        </div>
+
+        <div class="issue-grid">
+          ${cells}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderField(token) {
+    const requiredMark = token.required ? " *" : "";
+
+    const description = token.description
+      ? `
+          <div class="desc">
+            ${escapeHtml(token.description)}
+          </div>
+        `
+      : "";
+
+    if (token.type === "boolean") {
+      return `
+        <div class="field field-compact">
+          <div class="checkbox-row">
+            <input
+              type="checkbox"
+              id="f-${escapeAttr(token.name)}"
+              ${values[token.name] ? "checked" : ""}
+            />
+
+            <label
+              for="f-${escapeAttr(token.name)}"
+            >
+              ${escapeHtml(token.label)}
+              ${requiredMark}
+            </label>
+          </div>
+
+          ${description}
+        </div>
+      `;
+    }
+
+    return `
+      <div class="field">
+        <div class="field-head">
+          <label
+            for="f-${escapeAttr(token.name)}"
+          >
+            ${escapeHtml(token.label)}
+            ${requiredMark}
+          </label>
+
+          ${token.name === "type" ? renderAutoGitmojiToggle() : ""}
+        </div>
+
+        ${description}
+
+        ${renderTokenFreqChips(token)}
+
+        ${renderInputControl(token)}
+
+        ${renderScopeSaveButton(token)}
+      </div>
+    `;
+  }
+
+  function renderAutoGitmojiToggle() {
+    return `
+      <label
+        class="auto-gitmoji-toggle"
+        title="اگر فعال باشد، انتخاب هر Type به‌صورت خودکار ایموجی متناظرش را هم در Gitmoji قرار می‌دهد"
+      >
+        <input
+          type="checkbox"
+          id="auto-gitmoji-toggle"
+          ${autoGitmoji ? "checked" : ""}
+        />
+
+        <span>Auto Gitmoji</span>
+      </label>
+    `;
+  }
+
+  function renderScopeSaveButton(token) {
+    if (token.name !== "scope") {
+      return "";
+    }
+
+    return `
+      <button
+        class="scope-add-btn"
+        id="scope-add-${escapeAttr(token.name)}"
+        type="button"
+      >
+        ➕ Save
+      </button>
+    `;
+  }
+
+  function renderTokenFreqChips(token) {
+    if (
+      token.name === "scope" &&
+      Array.isArray(settings.scopes) &&
+      settings.scopes.length
+    ) {
+      return `
+        <div class="freq-chips">
+          ${settings.scopes
+            .map(
+              (scope) => `
+                <span class="freq-chip">
+                  <span
+                    class="freq-chip-label"
+                    data-set-field="scope"
+                    data-set-value="${escapeAttr(scope)}"
+                  >
+                    ${escapeHtml(scope)}
+                  </span>
+
+                  <button
+                    type="button"
+                    class="freq-chip-remove"
+                    data-remove-scope="${escapeAttr(scope)}"
+                    title="حذف اسکوپ ذخیره‌شده «${escapeAttr(scope)}»"
+                    aria-label="حذف اسکوپ ذخیره‌شده ${escapeAttr(scope)}"
+                  >
+                    ✕
+                  </button>
+                </span>
+              `,
+            )
+            .join("")}
+        </div>
+      `;
+    }
+
+    return "";
+  }
+
+  function renderInputControl(token) {
+    const id = `f-${token.name}`;
+
+    if (token.type === "enum") {
+      let options = Array.isArray(token.options) ? token.options : [];
+
+      if (
+        token.name === "type" &&
+        Array.isArray(settings.types) &&
+        settings.types.length
+      ) {
+        options = settings.types.map((type) => ({
+          label: type,
+        }));
+      }
+
+      // فیلد Type مورد خاص است: هر ستون یک ایموجی متناظر (اگر پیدا شود)
+      // بالای برچسب نوع نشان می‌دهد — نمونه: ✨ بالای feat
+      if (token.name === "type") {
+        return renderTypeWithEmojiGrid(token, id, options);
+      }
+
+      return renderOptionGrid(token, id, options);
+    }
+
+    if (token.multiline) {
+      const rows = Math.min(Number(token.lines) || 3, 4);
+
+      const className = token.monospace ? "monospace" : "";
+
+      return `
+        <textarea
+          id="${escapeAttr(id)}"
+          rows="${rows}"
+          class="${className}"
+        >${escapeHtml(fieldValue(token.name))}</textarea>
+
+        ${renderCounter(token)}
+      `;
+    }
+
+    return `
+      <input
+        type="text"
+        id="${escapeAttr(id)}"
+        value="${escapeAttr(fieldValue(token.name))}"
+      />
+
+      ${renderCounter(token)}
+    `;
+  }
+
+  // از روی توضیح گزینه‌های Gitmoji (مثلاً "feat — یک قابلیت جدید")
+  // یک نگاشت type→emoji می‌سازد؛ اگر یک ایموجی چند نوع را پوشش دهد
+  // (مثلاً "build/ci/chore")، برای هرکدام جداگانه ثبت می‌شود
+  function buildTypeEmojiMap() {
+    const gitmojiToken = findToken("gitmoji");
+    const map = {};
+
+    if (!gitmojiToken || !Array.isArray(gitmojiToken.options)) {
+      return map;
+    }
+
+    gitmojiToken.options.forEach((option) => {
+      if (!option.description) return;
+
+      const slugPart = option.description.split("—")[0] || "";
+
+      slugPart
+        .split("/")
+        .map((slug) => slug.trim().toLowerCase())
+        .filter(Boolean)
+        .forEach((slug) => {
+          map[slug] = option.label;
+        });
+    });
+
+    return map;
+  }
+
+  // گرید ترکیبی Type + Gitmoji: هر خانه یک ایموجی متناظر (در صورت وجود)
+  // را بالای برچسب نوع نشان می‌دهد و با یک کلیک هم Type و هم Gitmoji
+  // را همزمان تنظیم می‌کند
+  function renderTypeWithEmojiGrid(token, id, options) {
+    const current = fieldValue(token.name);
+    const emojiMap = buildTypeEmojiMap();
+
+    const cells = options
+      .map((option) => {
+        const label = option.label || option.value || "";
+        const selected = current !== "" && current === label;
+        const emoji = emojiMap[label.toLowerCase()] || "";
+
+        const shortDesc = option.description
+          ? option.description.split(" — ").pop()
+          : "";
+
+        // فقط وقتی «Auto Gitmoji» فعال است، انتخاب Type مقدار Gitmoji را
+        // هم تغییر می‌دهد؛ در غیر این صورت فقط جنبه‌ی نمایشی/راهنما دارد
+        const alsoSetAttr =
+          emoji && autoGitmoji
+            ? `data-also-set="gitmoji:${escapeAttr(emoji)}"`
+            : "";
+
+        return `
+          <div
+            class="option-cell type-emoji-cell ${selected ? "selected" : ""}"
+            role="button"
+            tabindex="0"
+            data-set-field="${escapeAttr(token.name)}"
+            data-set-value="${escapeAttr(label)}"
+            data-toggle="true"
+            ${alsoSetAttr}
+            title="${escapeAttr(option.description || label)}"
+          >
+            <span class="option-emoji-slot ${autoGitmoji ? "" : "is-inactive"}">
+              ${emoji ? escapeHtml(emoji) : ""}
+            </span>
+
+            <span class="option-icon is-word">${escapeHtml(label)}</span>
+
+            ${
+              shortDesc
+                ? `<span class="option-desc">${escapeHtml(shortDesc)}</span>`
+                : ""
+            }
+          </div>
+        `;
+      })
+      .join("");
+
+    return `
+      <div
+        class="option-grid type-emoji-grid"
+        id="${escapeAttr(id)}"
+        tabindex="-1"
+        aria-label="${escapeAttr(token.label)}"
+      >
+        ${cells}
+      </div>
+    `;
+  }
+
+  // Shared "option grid" used for enum fields (Gitmoji, Type, and any
+  // other enum token): each option is a uniform-size box with its
+  // icon/label on top and a short description underneath. Clicking a
+  // selected box again clears the field (toggle), same as picking the
+  // blank option in a classic <select>.
+  function renderOptionGrid(token, id, options) {
+    const current = fieldValue(token.name);
+
+    const placeholder = token.required ? "— select —" : "(none)";
+
+    const cells = options
+      .map((option) => {
+        const label = option.label || option.value || "";
+        const selected = current !== "" && current === label;
+
+        const shortDesc = option.description
+          ? option.description.split(" — ").pop()
+          : "";
+
+        // برچسب‌های ایموجی (یک یا دو نویسه‌ی تصویری) بزرگ‌تر دیده می‌شوند؛
+        // برچسب‌های کلمه‌ای (مثل feat/fix/refactor) با اندازه‌ی جمع‌وجورتر
+        const isEmojiLabel = /\p{Extended_Pictographic}/u.test(label);
+
+        return `
+          <div
+            class="option-cell ${selected ? "selected" : ""} ${
+              isEmojiLabel ? "is-emoji" : "is-word"
+            }"
+            role="button"
+            tabindex="0"
+            data-set-field="${escapeAttr(token.name)}"
+            data-set-value="${escapeAttr(label)}"
+            data-toggle="true"
+            title="${escapeAttr(option.description || label)}"
+          >
+            <span class="option-icon">${escapeHtml(label)}</span>
+
+            ${
+              shortDesc
+                ? `<span class="option-desc">${escapeHtml(shortDesc)}</span>`
+                : ""
+            }
+          </div>
+        `;
+      })
+      .join("");
+
+    return `
+      <div
+        class="option-grid"
+        id="${escapeAttr(id)}"
+        tabindex="-1"
+        aria-label="${escapeAttr(token.label)}"
+      >
+        ${
+          options.length
+            ? cells
+            : `<span class="desc">${escapeHtml(placeholder)}</span>`
+        }
+      </div>
+    `;
+  }
+
+  function renderCounter(token) {
+    const max =
+      token.maxLength ||
+      (token.name === "subject" ? settings.maxSubjectLength : undefined);
+
+    if (!max) return "";
+
+    const length = fieldValue(token.name).length;
+
+    return `
+      <div class="counter ${length > max ? "over" : ""}">
+        ${length} / ${max}
+      </div>
+    `;
+  }
+
+  // =====================================================
+  // Field Binding
+  // =====================================================
+
+  function bindField(token) {
+    const element = document.getElementById(`f-${token.name}`);
+
+    if (!element) return;
+
+    if (token.type === "boolean") {
+      element.addEventListener("change", () => {
+        values[token.name] = element.checked;
+
+        saveDraft();
+        updatePreviewAndChips();
+        validateField(token);
+      });
+
+      return;
+    }
+
+    const update = () => {
+      setValue(token.name, element.value);
+
+      // هیچ‌کدام از فیلدهای اختیاری دیگر چک‌باکس «فعال‌سازی» جداگانه
+      // ندارند: با تایپ خودکار فعال و با خالی‌شدن خودکار غیرفعال می‌شوند
+      if (isCollapsible(token)) {
+        conditionalEnabled[token.name] = element.value.trim() !== "";
+      }
+
+      updatePreviewAndChips();
+      validateField(token);
+    };
+
+    element.addEventListener("input", update);
+
+    element.addEventListener("change", update);
+
+    document
+      .querySelectorAll(`[data-set-field="${escapeCssValue(token.name)}"]`)
+      .forEach((chip) => {
+        chip.addEventListener("click", () => {
+          const isToggle = chip.getAttribute("data-toggle") === "true";
+          const currentValue = fieldValue(token.name);
+          const requestedValue = chip.getAttribute("data-set-value") || "";
+          const nextValue =
+            isToggle && currentValue === requestedValue ? "" : requestedValue;
+
+          setValue(token.name, nextValue);
+
+          if (isCollapsible(token)) {
+            conditionalEnabled[token.name] = nextValue.trim() !== "";
+          }
+
+          // برخی خانه‌ها یک فیلد ثانویه را هم همزمان تنظیم می‌کنند
+          // (مثلاً کلیک روی «feat» در گرید Type، Gitmoji را هم به ✨ تغییر می‌دهد)
+          const alsoSet = chip.getAttribute("data-also-set");
+
+          if (alsoSet) {
+            const sepIndex = alsoSet.indexOf(":");
+            const otherName = alsoSet.slice(0, sepIndex);
+            const otherValue = alsoSet.slice(sepIndex + 1);
+            const otherToken = findToken(otherName);
+
+            setValue(otherName, otherValue);
+
+            if (otherToken && isCollapsible(otherToken)) {
+              conditionalEnabled[otherName] = otherValue.trim() !== "";
+            }
+          }
+
+          render();
+        });
+
+        chip.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            chip.click();
+          }
+        });
+      });
+
+    const addButton = document.getElementById(`scope-add-${token.name}`);
+
+    if (addButton) {
+      addButton.addEventListener("click", () => {
+        const value = element.value.trim();
+
+        if (!value) return;
+
+        if (!Array.isArray(settings.scopes)) {
+          settings.scopes = [];
+        }
+
+        if (settings.scopes.includes(value)) {
+          return;
+        }
+
+        settings.scopes.push(value);
+
+        vscode.postMessage({
+          type: "addScope",
+          scope: value,
+        });
+
+        render();
+      });
+    }
+
+    if (token.name === "scope") {
+      document
+        .querySelectorAll("[data-remove-scope]")
+        .forEach((removeButton) => {
+          removeButton.addEventListener("click", (event) => {
+            // جلوگیری از فعال‌شدن کلیک روی خودِ چیپ (که مقدار اسکوپ را ست می‌کند)
+            event.stopPropagation();
+
+            const scopeToRemove =
+              removeButton.getAttribute("data-remove-scope");
+
+            if (!scopeToRemove) return;
+
+            if (Array.isArray(settings.scopes)) {
+              settings.scopes = settings.scopes.filter(
+                (scope) => scope !== scopeToRemove,
+              );
+            }
+
+            vscode.postMessage({
+              type: "removeScope",
+              scope: scopeToRemove,
+            });
+
+            render();
+          });
+        });
+    }
+  }
+
+  // =====================================================
+  // Preview
+  // =====================================================
+
+  function updatePreviewAndChips() {
+    const message = buildMessage();
+
+    const lines = message ? message.split("\n") : [];
+
+    const gutter = document.querySelector(".preview-gutter");
+
+    const body = document.getElementById("preview-lines");
+
+    if (gutter && body) {
+      gutter.innerHTML = lines.length
+        ? lines.map((_, index) => `<div>${index + 1}</div>`).join("")
+        : "<div>1</div>";
+
+      body.innerHTML = lines.length
+        ? lines
+            .map(
+              (line, index) =>
+                `<div class="line${index === 0 ? " subject" : ""}">${
+                  escapeHtml(line) || "&nbsp;"
+                }</div>`,
+            )
+            .join("")
+        : `
+            <div class="line empty-msg">
+              Your commit message will appear here…
+            </div>
+          `;
+    }
+
+    const lineCount = document.getElementById("line-count");
+
+    const charCount = document.getElementById("char-count");
+
+    if (lineCount) {
+      lineCount.textContent = `${lines.length || 0} line${
+        (lines.length || 0) === 1 ? "" : "s"
+      }`;
+    }
+
+    if (charCount) {
+      charCount.textContent = `${message.length} chars`;
+    }
+
+    renderChips(computeWarnings());
+  }
+
+  // =====================================================
+  // Recent Commits
+  // =====================================================
+
+  function renderRecentCommits() {
+    const container = document.getElementById("recent-commits");
+
+    if (!container) return;
+
+    container.innerHTML = recentCommits
+      .map(
+        (commit, index) => `
+            <div
+              class="recent-commit-item"
+              data-idx="${index}"
+            >
+              ${escapeHtml(commit.subject || "")}
+            </div>
+          `,
+      )
+      .join("");
+
+    container.querySelectorAll(".recent-commit-item").forEach((element) => {
+      element.addEventListener("click", () => {
+        const index = Number(element.getAttribute("data-idx"));
+
+        const commit = recentCommits[index];
+
+        if (!commit) return;
+
+        loadRawIntoSubjectBody(
+          (commit.subject || "") + (commit.body ? `\n\n${commit.body}` : ""),
+        );
+      });
+    });
+  }
+
+  // =====================================================
+  // Toolbar
+  // =====================================================
+
+  function bindToolbar() {
+    bindClick("btn-insert", () => {
+      vscode.postMessage({
+        type: "insert",
+        message: buildMessage(),
+      });
+    });
+
+    bindClick("btn-copy", () => {
+      vscode.postMessage({
+        type: "copy",
+        message: buildMessage(),
+      });
+    });
+
+    bindClick("btn-reset", () => {
+      values = {};
+      conditionalEnabled = {};
+
+      saveDraft();
+      render();
+    });
+
+    bindClick("btn-autofill", () => {
+      if (pendingActions.autoSuggest) {
+        return;
+      }
+
+      pendingActions.autoSuggest = true;
+
+      showSpinner("btn-autofill");
+
+      vscode.postMessage({
+        type: "requestAutoSuggest",
+      });
+    });
+
+    bindClick("btn-ai", () => {
+      if (pendingActions.aiDraft) {
+        return;
+      }
+
+      pendingActions.aiDraft = true;
+
+      showSpinner("btn-ai");
+
+      vscode.postMessage({
+        type: "aiDraft",
+      });
+    });
+
+    bindClick("btn-config", () => {
+      vscode.postMessage({
+        type: "openConfigEditor",
+      });
+    });
+
+    bindClick("btn-git-template", () => {
+      vscode.postMessage({
+        type: "writeGitTemplate",
+        message: buildMessage(),
+      });
+    });
+
+    bindClick("btn-project-config", () => {
+      vscode.postMessage({
+        type: "createProjectConfig",
+      });
+    });
+
+    bindClick("btn-amend", () => {
+      vscode.postMessage({
+        type: "amendLast",
+        message: buildMessage(),
+      });
+    });
+
+    bindClick("btn-undo", () => {
+      vscode.postMessage({
+        type: "undoLastInsert",
+      });
+    });
+  }
+
+  function bindClick(id, handler) {
+    const element = document.getElementById(id);
+
+    if (element) {
+      element.addEventListener("click", handler);
+    }
+  }
+
+  // =====================================================
+  // Collapsible
+  // =====================================================
+
+  function bindCollapsibles() {
+    document.querySelectorAll("[data-collapsible-toggle]").forEach((header) => {
+      header.addEventListener("click", () => {
+        const section = header.closest(".collapsible-section");
+
+        if (!section) return;
+
+        const body = section.querySelector(".collapsible-body");
+
+        const chevron = section.querySelector(".chevron");
+
+        body?.classList.toggle("open");
+
+        chevron?.classList.toggle("open");
+      });
+    });
+  }
+
+  // =====================================================
+  // Global Listeners
+  // =====================================================
+
+  function bindGlobalListeners() {
+    document.addEventListener("click", (event) => {
+      const toggle = document.getElementById("more-toggle");
+
+      const dropdown = document.getElementById("more-dropdown");
+
+      if (!toggle || !dropdown) {
+        return;
+      }
+
+      if (toggle.contains(event.target)) {
+        event.stopPropagation();
+
+        dropdown.classList.toggle("open");
+
+        return;
+      }
+
+      if (!dropdown.contains(event.target)) {
+        dropdown.classList.remove("open");
+      }
+    });
+  }
+
+  // =====================================================
+  // Escape Helpers
+  // =====================================================
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function escapeAttr(value) {
+    return escapeHtml(value).replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  function escapeCssValue(value) {
+    if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
+      return CSS.escape(value);
+    }
+
+    return String(value).replace(/["\\]/g, "\\$&");
+  }
+})();

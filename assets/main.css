@@ -1,0 +1,1221 @@
+/* ─────────────────────────────────────────────────────────────
+   Commit Message Editor — visual system (v2, modern redesign)
+   Full-width, two-pane workspace (form ↔ live preview).
+   Palette rides VS Code theme tokens; only accent/success/warn
+   get a small, deliberate color identity of their own.
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  --cme-radius-lg: 14px;
+  --cme-radius: 10px;
+  --cme-radius-sm: 7px;
+  --cme-gap: 10px;
+  --cme-pad: 14px;
+
+  --cme-ok: #3ecf8e;
+  --cme-ok-bg: color-mix(in srgb, var(--cme-ok) 14%, transparent);
+  --cme-warn: #f0955f;
+  --cme-warn-bg: color-mix(in srgb, var(--cme-warn) 14%, transparent);
+
+  --cme-accent: var(--vscode-button-background, #0e639c);
+  --cme-accent-fg: var(--vscode-button-foreground, #fff);
+  --cme-accent-soft: color-mix(in srgb, var(--cme-accent) 14%, transparent);
+  --cme-accent-ring: color-mix(in srgb, var(--cme-accent) 45%, transparent);
+
+  --cme-border: color-mix(
+    in srgb,
+    var(--vscode-panel-border, #808080) 55%,
+    transparent
+  );
+  --cme-border-soft: color-mix(
+    in srgb,
+    var(--vscode-panel-border, #808080) 28%,
+    transparent
+  );
+
+  --cme-muted: color-mix(in srgb, var(--vscode-foreground) 62%, transparent);
+  --cme-faint: color-mix(in srgb, var(--vscode-foreground) 42%, transparent);
+
+  --cme-surface: var(--vscode-input-background, rgba(127, 127, 127, 0.07));
+  --cme-surface-2: color-mix(
+    in srgb,
+    var(--vscode-editor-background) 60%,
+    var(--vscode-foreground) 4%
+  );
+  --cme-card: color-mix(
+    in srgb,
+    var(--vscode-editor-background) 97%,
+    var(--vscode-foreground) 3%
+  );
+
+  --cme-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.14);
+  --cme-shadow-md: 0 6px 20px -6px rgba(0, 0, 0, 0.35);
+  --cme-shadow-lg: 0 16px 40px -12px rgba(0, 0, 0, 0.45);
+
+  --cme-mono: var(
+    --vscode-editor-font-family,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace
+  );
+  --cme-sans: var(--vscode-font-family);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  min-width: 0;
+}
+
+body {
+  font-family: var(--cme-sans);
+  color: var(--vscode-foreground);
+  background: var(--vscode-editor-background);
+  padding: 0;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  width: 100%;
+}
+
+/* ── page shell: full-bleed, generous responsive gutters ── */
+.page {
+  width: 100%;
+  max-width: 1760px;
+  margin: 0 auto;
+  padding: 14px clamp(14px, 3vw, 36px) 40px;
+}
+
+/* ── sticky status strip ── */
+.dashboard {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: color-mix(
+    in srgb,
+    var(--vscode-editor-background) 88%,
+    transparent
+  );
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--cme-border-soft);
+  padding: 9px 2px 11px;
+  margin: 0 -2px 2px;
+}
+
+.dashboard-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  border: 1px solid transparent;
+  line-height: 1.5;
+  transition:
+    border-color 0.12s,
+    background 0.12s,
+    transform 0.1s;
+}
+.chip::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+.chip:hover {
+  transform: translateY(-1px);
+}
+.chip:focus-visible {
+  outline: 1px solid var(--cme-accent);
+  outline-offset: 2px;
+}
+
+.chip.ok {
+  background: var(--cme-ok-bg);
+  color: var(--cme-ok);
+  border-color: color-mix(in srgb, var(--cme-ok) 35%, transparent);
+}
+.chip.warn {
+  background: var(--cme-warn-bg);
+  color: var(--cme-warn);
+  border-color: color-mix(in srgb, var(--cme-warn) 40%, transparent);
+}
+.chip.empty {
+  background: var(--vscode-badge-background, rgba(127, 127, 127, 0.14));
+  color: var(--vscode-badge-foreground, var(--cme-muted));
+  opacity: 0.85;
+}
+
+.progress-text {
+  font-size: 10.5px;
+  color: var(--cme-muted);
+  margin-inline-start: auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.warnings {
+  font-size: 11px;
+  color: var(--cme-warn);
+  margin-top: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+.warnings:hover {
+  text-decoration: underline;
+}
+
+/* ── header ── */
+.header-block {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 18px 0 4px;
+  flex-wrap: wrap;
+}
+
+.header-block h1 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+h1 {
+  font-size: 18px;
+  margin: 0;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+h1 .template-name {
+  font-weight: 400;
+  font-size: 12.5px;
+  color: var(--cme-muted);
+}
+
+.source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--cme-mono);
+  font-size: 10.5px;
+  color: var(--cme-muted);
+  background: var(--cme-surface-2);
+  border: 1px solid var(--cme-border-soft);
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.source-badge .repo {
+  color: var(--cme-ok);
+  font-weight: 600;
+}
+
+/* ── toolbar ── */
+.toolbar {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 14px 0 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--cme-border-soft);
+}
+
+button {
+  font-family: var(--cme-sans);
+  background: var(--cme-surface-2);
+  color: var(--vscode-foreground);
+  border: 1px solid var(--cme-border-soft);
+  border-radius: 999px;
+  padding: 6px 13px;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  line-height: 1.4;
+  transition:
+    filter 0.12s,
+    background 0.12s,
+    border-color 0.12s,
+    transform 0.08s,
+    box-shadow 0.12s;
+}
+button:hover {
+  border-color: color-mix(in srgb, var(--vscode-foreground) 30%, transparent);
+  transform: translateY(-1px);
+}
+button:active {
+  transform: translateY(0);
+  filter: brightness(0.96);
+}
+button:focus-visible {
+  outline: 1px solid var(--cme-accent);
+  outline-offset: 2px;
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+}
+
+button.primary {
+  background: linear-gradient(
+    135deg,
+    var(--cme-accent),
+    color-mix(in srgb, var(--cme-accent) 78%, #ffffff 8%)
+  );
+  color: var(--cme-accent-fg);
+  border: 1px solid transparent;
+  font-weight: 600;
+  padding: 6px 16px;
+  box-shadow: var(--cme-shadow-sm);
+}
+button.primary:hover {
+  box-shadow: var(--cme-shadow-md);
+}
+
+button.secondary {
+  background: transparent;
+}
+
+/* ── two-pane workspace: form ↔ live preview, full width ── */
+.workspace {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 22px;
+  align-items: start;
+}
+
+@media (min-width: 760px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 480px);
+  }
+  .workspace-preview {
+    position: sticky;
+    top: 66px;
+  }
+}
+
+@media (min-width: 1180px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1.5fr) minmax(360px, 540px);
+  }
+}
+
+.workspace-form {
+  min-width: 0;
+}
+
+.workspace-preview {
+  min-width: 0;
+}
+
+/* ── form fields ── */
+.field {
+  margin-bottom: 14px;
+  background: var(--cme-card);
+  border: 1px solid var(--cme-border-soft);
+  border-radius: var(--cme-radius);
+  padding: 11px 13px;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+.field:focus-within {
+  border-color: color-mix(in srgb, var(--cme-accent) 55%, transparent);
+  box-shadow: 0 0 0 1px var(--cme-accent-ring);
+}
+
+.field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.field-head label {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cme-muted);
+  margin-bottom: 0;
+}
+
+.auto-gitmoji-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+}
+.auto-gitmoji-toggle span {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--cme-muted);
+}
+.auto-gitmoji-toggle input[type="checkbox"] {
+  accent-color: var(--cme-accent);
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.field .desc {
+  font-size: 11px;
+  color: var(--cme-faint);
+  margin-bottom: 7px;
+  line-height: 1.45;
+}
+
+.field input[type="text"],
+.field select,
+.field textarea {
+  width: 100%;
+  background: var(--cme-surface);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, var(--cme-border-soft));
+  border-radius: var(--cme-radius-sm);
+  padding: 7px 10px;
+  font-family: var(--cme-sans);
+  font-size: 12.5px;
+  transition:
+    border-color 0.12s,
+    box-shadow 0.12s;
+}
+.field input[type="text"]:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: var(--cme-accent);
+  box-shadow: 0 0 0 1px var(--cme-accent-ring);
+}
+
+.field textarea {
+  min-height: 64px;
+  resize: vertical;
+  line-height: 1.55;
+}
+.field textarea.monospace {
+  font-family: var(--cme-mono);
+  font-size: 12px;
+}
+
+.field .counter {
+  font-family: var(--cme-mono);
+  font-size: 10px;
+  color: var(--cme-faint);
+  text-align: right;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.field .counter.over {
+  color: var(--cme-warn);
+  font-weight: 600;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+.checkbox-row label {
+  margin: 0;
+  font-weight: 500;
+  font-size: 12.5px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+}
+.checkbox-row input[type="checkbox"],
+.optional-toggle input[type="checkbox"] {
+  accent-color: var(--cme-accent);
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+/* ── required "core" fields row (gitmoji + type share equal-size cells) ── */
+.core-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 4px;
+}
+
+/* ── option grid: shared component for Gitmoji + Type ──
+   icon/label on top, description underneath, uniform box size */
+.option-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+  gap: 5px;
+  outline: none;
+}
+
+.option-cell {
+  --cme-cell-h: 58px;
+  height: var(--cme-cell-h);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 5px 4px;
+  border-radius: var(--cme-radius-sm);
+  border: 1px solid var(--cme-border-soft);
+  background: var(--cme-surface);
+  cursor: pointer;
+  text-align: center;
+  transition:
+    border-color 0.12s,
+    background 0.12s,
+    transform 0.08s,
+    box-shadow 0.12s;
+}
+.option-cell:hover {
+  border-color: color-mix(in srgb, var(--cme-accent) 45%, transparent);
+  transform: translateY(-1px);
+}
+.option-cell:focus-visible {
+  outline: 1px solid var(--cme-accent);
+  outline-offset: 2px;
+}
+.option-cell.selected {
+  border-color: var(--cme-accent);
+  background: var(--cme-accent-soft);
+  box-shadow: 0 0 0 1px var(--cme-accent-ring);
+}
+
+.option-icon {
+  font-family: var(--cme-mono);
+  font-weight: 650;
+  color: var(--vscode-foreground);
+  max-width: 100%;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* emoji options (Gitmoji): one large glyph */
+.option-cell.is-emoji .option-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* word options (Type, and any plain-text enum): compact label,
+   allowed to wrap onto a second line instead of being clipped */
+.option-cell.is-word .option-icon {
+  font-size: 10.5px;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  -webkit-line-clamp: 2;
+  word-break: break-word;
+}
+
+.option-desc {
+  font-size: 7.5px;
+  color: var(--cme-faint);
+  line-height: 1.15;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 100%;
+}
+.option-cell.selected .option-desc {
+  color: color-mix(in srgb, var(--cme-accent) 70%, var(--vscode-foreground));
+}
+
+/* merged Type + Gitmoji grid: emoji on top, type label + description
+   below it — e.g. "✨" above "feat" */
+.type-emoji-grid {
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+}
+.type-emoji-cell {
+  --cme-cell-h: 76px;
+  justify-content: flex-start;
+  padding-top: 9px;
+}
+.option-emoji-slot {
+  font-size: 15px;
+  line-height: 1;
+  min-height: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.12s;
+}
+.option-emoji-slot.is-inactive {
+  opacity: 0.32;
+  filter: grayscale(60%);
+}
+
+/* ── compact issue-reference grid: closes / resolves / refs / see also ──
+   collapses the four reference fields into one/two tight rows */
+.field-block {
+  margin-bottom: 14px;
+}
+
+.issue-group-title {
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cme-muted);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.issue-group-title .hint {
+  font-size: 10px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--cme-faint);
+}
+
+.issue-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 6px 10px;
+}
+
+.issue-cell {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--cme-card);
+  border: 1px solid var(--cme-border-soft);
+  border-radius: 999px;
+  padding: 4px 6px 4px 12px;
+  transition:
+    border-color 0.12s,
+    box-shadow 0.12s;
+  min-height: 30px;
+}
+.issue-cell:focus-within {
+  border-color: color-mix(in srgb, var(--cme-accent) 55%, transparent);
+  box-shadow: 0 0 0 1px var(--cme-accent-ring);
+}
+.issue-cell.active {
+  border-color: color-mix(in srgb, var(--cme-accent) 32%, transparent);
+}
+
+.issue-cell-label {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--cme-muted);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.issue-cell-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  color: var(--vscode-input-foreground);
+  border: none;
+  outline: none;
+  font-size: 11.5px;
+  padding: 3px 0;
+  font-family: var(--cme-mono);
+}
+.issue-cell-input::placeholder {
+  color: var(--cme-faint);
+  font-family: var(--cme-sans);
+}
+
+/* stacked variant: for detail fields that carry extra content below
+   the input (currently only Scope, with its saved-scope chips) —
+   same pill family, just column-oriented and spanning the full grid */
+.issue-cell--stack {
+  grid-column: 1 / -1;
+  flex-direction: column;
+  align-items: stretch;
+  border-radius: var(--cme-radius-sm);
+  padding: 7px 10px;
+  gap: 5px;
+}
+.issue-cell-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.issue-cell--stack .freq-chips {
+  margin: 0;
+}
+.issue-cell--stack .issue-cell-row .scope-add-btn {
+  /* align-self: flex-start; */
+  flex-shrink: 0;
+  margin-left: 0;
+}
+
+/* wide variant: for a single-line pill that needs more room than the
+   others — currently Signed-off-by, sized for a "Name <email>" trailer */
+.issue-cell--wide {
+  grid-column: 1 / -1;
+  min-width: min(100%, 70ch);
+}
+
+/* small "fetch from Git" button next to Signed-off-by */
+.issue-cell-git-btn {
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px dashed var(--cme-border);
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 10px;
+  color: var(--cme-muted);
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.issue-cell-git-btn:hover {
+  border-color: var(--cme-accent);
+  color: var(--cme-accent);
+  transform: none;
+}
+.issue-cell-git-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* two-column grid for the remaining multiline trailer fields
+   (BREAKING CHANGE, Co-authored-by, Reviewed-by, Tested-by,
+   Acked-by, Reported-by) — Body stays full width, outside this grid */
+.card-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  align-items: start;
+  margin-bottom: 14px;
+}
+.card-fields-grid .field {
+  margin-bottom: 0;
+}
+@media (max-width: 480px) {
+  .card-fields-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* optional section */
+.section-optional {
+  margin: 14px 0 8px;
+  border: 1px solid var(--cme-border);
+  border-radius: var(--cme-radius);
+  background: color-mix(in srgb, var(--cme-surface) 70%, transparent);
+  overflow: hidden;
+}
+
+.section-optional-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cme-faint);
+  padding: 8px 10px 6px;
+  border-bottom: 1px solid var(--cme-border);
+  background: color-mix(
+    in srgb,
+    var(--vscode-editor-background) 50%,
+    transparent
+  );
+}
+
+.field.field-compact {
+  margin: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--cme-border) 55%, transparent);
+  background: transparent;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+}
+.field.field-compact:focus-within {
+  box-shadow: none;
+}
+.field.field-compact:last-child {
+  border-bottom: none;
+}
+.field.field-compact.expanded {
+  background: color-mix(
+    in srgb,
+    var(--vscode-editor-background) 40%,
+    transparent
+  );
+  padding-bottom: 11px;
+}
+
+.optional-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  min-height: 22px;
+}
+.optional-toggle label {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+}
+.optional-toggle .opt-hint {
+  font-size: 10.5px;
+  color: var(--cme-faint);
+  margin-inline-start: auto;
+  font-style: italic;
+}
+
+.optional-body {
+  margin-top: 8px;
+  margin-inline-start: 22px;
+}
+
+.freq-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.freq-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 4px 2px 9px;
+  border-radius: 999px;
+  background: var(--vscode-badge-background, rgba(127, 127, 127, 0.14));
+  border: 1px solid transparent;
+  line-height: 1.6;
+  transition: border-color 0.1s;
+}
+.freq-chip:hover {
+  border-color: var(--cme-accent);
+}
+.freq-chip-label {
+  font-size: 10.5px;
+  color: var(--vscode-badge-foreground, var(--vscode-foreground));
+  cursor: pointer;
+}
+.freq-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--cme-faint);
+  font-size: 9px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background 0.1s,
+    color 0.1s,
+    transform 0.1s;
+}
+.freq-chip-remove:hover {
+  background: color-mix(in srgb, var(--cme-warn) 25%, transparent);
+  color: var(--cme-warn);
+  transform: none;
+}
+.freq-chip-remove:focus-visible {
+  outline: 1px solid var(--cme-accent);
+  outline-offset: 1px;
+}
+
+/* ── preview: signature element — faux COMMIT_EDITMSG ── */
+.section-title {
+  font-size: 10.5px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cme-faint);
+  margin: 0 0 8px;
+}
+
+.preview-shell {
+  border: 1px solid var(--cme-border);
+  border-radius: var(--cme-radius-lg);
+  overflow: hidden;
+  background: var(--cme-surface-2);
+  box-shadow: var(--cme-shadow-md);
+}
+
+.preview-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--cme-border-soft);
+  background: color-mix(
+    in srgb,
+    var(--vscode-editor-background) 55%,
+    transparent
+  );
+  font-family: var(--cme-mono);
+  font-size: 10.5px;
+  color: var(--cme-muted);
+}
+.preview-tab .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cme-ok);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--cme-ok) 25%, transparent);
+}
+
+.preview-code {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  font-family: var(--cme-mono);
+  font-size: 12px;
+  line-height: 1.7;
+  direction: ltr;
+  text-align: left;
+  max-height: min(52vh, 460px);
+  overflow: auto;
+  min-height: 96px;
+}
+
+.preview-gutter {
+  color: var(--cme-faint);
+  text-align: right;
+  padding: 12px 8px 12px 4px;
+  user-select: none;
+  border-right: 1px solid var(--cme-border-soft);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+}
+.preview-gutter div {
+  min-height: 1.7em;
+}
+
+.preview-lines {
+  padding: 12px 14px;
+  white-space: wrap;
+  word-break: break-word;
+  color: var(--vscode-foreground);
+}
+.preview-lines .line {
+  min-height: 1.7em;
+}
+.preview-lines .line.subject {
+  font-weight: 650;
+  color: var(--vscode-foreground);
+}
+.preview-lines .empty-msg {
+  color: var(--cme-faint);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.preview-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 12px;
+  border-top: 1px solid var(--cme-border-soft);
+  font-family: var(--cme-mono);
+  font-size: 10px;
+  color: var(--cme-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── recent commits ── */
+.recent-commits {
+  border: 1px solid var(--cme-border-soft);
+  border-radius: var(--cme-radius);
+  padding: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+  background: color-mix(in srgb, var(--cme-surface) 50%, transparent);
+}
+
+.recent-commit-item {
+  font-size: 11.5px;
+  padding: 6px 9px;
+  border-radius: var(--cme-radius-sm);
+  cursor: pointer;
+  font-family: var(--cme-mono);
+  color: var(--vscode-foreground);
+  transition: background 0.1s;
+}
+.recent-commit-item:hover {
+  background: var(--vscode-list-hoverBackground, rgba(127, 127, 127, 0.12));
+}
+.recent-commit-item:focus-visible {
+  outline: 1px solid var(--cme-accent);
+  outline-offset: -1px;
+}
+
+.ai-status {
+  font-size: 11px;
+  margin: 6px 0 2px;
+  color: var(--cme-muted);
+  min-height: 1.2em;
+}
+.ai-status.error {
+  color: var(--cme-warn);
+}
+
+.desc {
+  font-size: 11px;
+  color: var(--cme-muted);
+}
+
+/* reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .chip,
+  button,
+  .freq-chip,
+  .recent-commit-item,
+  .option-cell {
+    transition: none;
+  }
+  .chip:hover,
+  .option-cell:hover,
+  button:hover {
+    transform: none;
+  }
+}
+
+/* scrollbar */
+.preview-code::-webkit-scrollbar,
+.recent-commits::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.preview-code::-webkit-scrollbar-thumb,
+.recent-commits::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--vscode-foreground) 22%, transparent);
+  border-radius: 4px;
+}
+
+/* ── repo info bar ── */
+.repo-info-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 2px 10px;
+  font-size: 11px;
+  color: var(--cme-muted);
+  border-bottom: 1px solid var(--cme-border-soft);
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+.repo-info-bar .repo-name {
+  font-weight: 600;
+  color: var(--vscode-foreground);
+}
+.repo-info-bar .branch-name {
+  font-family: var(--cme-mono);
+  background: var(--cme-surface-2);
+  padding: 2px 9px;
+  border-radius: 999px;
+}
+.repo-info-bar .staged-count {
+  color: var(--cme-ok);
+  font-weight: 600;
+}
+.repo-info-bar select {
+  background: var(--cme-surface);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--cme-border-soft);
+  border-radius: var(--cme-radius-sm);
+  padding: 3px 7px;
+  font-size: 11px;
+  margin-left: auto;
+  max-width: 180px;
+}
+
+/* ── inline validation ── */
+.field.invalid {
+  border-color: color-mix(in srgb, var(--cme-warn) 50%, transparent);
+}
+.field.invalid input,
+.field.invalid select,
+.field.invalid textarea,
+.field.invalid .option-grid {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--cme-warn) 40%, transparent) !important;
+  border-radius: var(--cme-radius-sm);
+}
+.field .validation-msg {
+  font-size: 10.5px;
+  color: var(--cme-warn);
+  margin-top: 5px;
+  display: none;
+  font-weight: 500;
+}
+.field.invalid .validation-msg {
+  display: block;
+}
+
+/* ── collapsible sections ── */
+.workspace-preview .collapsible-section {
+  margin-top: 14px;
+  margin-bottom: 0;
+}
+
+.collapsible-section {
+  border: 1px solid var(--cme-border-soft);
+  border-radius: var(--cme-radius);
+  margin-bottom: 12px;
+  overflow: hidden;
+  background: var(--cme-card);
+}
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 12px;
+  background: color-mix(in srgb, var(--cme-surface) 55%, transparent);
+  cursor: pointer;
+  user-select: none;
+  font-weight: 550;
+  font-size: 11.5px;
+  transition: background 0.1s;
+}
+.collapsible-header:hover {
+  background: color-mix(in srgb, var(--cme-surface) 80%, transparent);
+}
+.collapsible-header .chevron {
+  transition: transform 0.15s ease;
+  font-size: 10px;
+  color: var(--cme-muted);
+}
+.collapsible-header .chevron.open {
+  transform: rotate(90deg);
+}
+.collapsible-body {
+  padding: 8px 12px 12px;
+  display: none;
+}
+.collapsible-body.open {
+  display: block;
+}
+
+/* ── "more" toolbar menu ── */
+.toolbar .more-menu {
+  position: relative;
+  display: inline-block;
+}
+.toolbar .more-menu .dropdown-content {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  background: var(--cme-card);
+  border: 1px solid var(--cme-border);
+  border-radius: var(--cme-radius);
+  padding: 5px 0;
+  min-width: 175px;
+  z-index: 40;
+  box-shadow: var(--cme-shadow-lg);
+}
+.toolbar .more-menu .dropdown-content.open {
+  display: block;
+}
+.toolbar .more-menu .dropdown-content button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--vscode-foreground);
+  padding: 6px 14px;
+  font-size: 11.5px;
+  border-radius: 0;
+}
+.toolbar .more-menu .dropdown-content button:hover {
+  background: var(--vscode-list-hoverBackground, rgba(127, 127, 127, 0.12));
+  transform: none;
+}
+.toolbar .more-menu .dropdown-content button:not(:last-child) {
+  border-bottom: 1px solid var(--cme-border-soft);
+}
+
+/* ── spinner ── */
+.spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--cme-border);
+  border-top-color: var(--cme-accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── scope "save" button ── */
+.scope-add-btn {
+  background: transparent;
+  border: 1px dashed var(--cme-border);
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 10px;
+  color: var(--cme-muted);
+  cursor: pointer;
+  transition: all 0.1s;
+  margin-left: 4px;
+}
+.scope-add-btn:hover {
+  border-color: var(--cme-accent);
+  color: var(--cme-accent);
+  transform: none;
+}

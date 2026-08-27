@@ -1,0 +1,199 @@
+{
+  "name": "gitcme",
+  "displayName": "Gitcme - Git Commit Message Editor",
+  "description": "Modern commit message editor with configurable form, IntelliSense, and AI draft",
+  "version": "1.0.0",
+  "publisher": "idmdakhi",
+  "keywords": [],
+  "author": "",
+  "homepage": "https://github.com/idmdakhi/GitCommitMessageEditor-vsce#readme",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/idmdakhi/GitCommitMessageEditor-vsce.git"
+  },
+  "bugs": {
+    "url": "https://github.com/idmdakhi/GitCommitMessageEditor-vsce/issues"
+  },
+  "directories": {
+    "doc": "docs",
+    "media": "media",
+    "schemas": "schemas",
+    "src": "src",
+    "templates": "templates"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "SCM Providers",
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:gitCommitMessageEditor.open",
+    "onCommand:gitCommitMessageEditor.openSettings"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "jsonValidation": [
+      {
+        "fileMatch": "commit-message-template.json",
+        "url": "./schemas/v1-template.schema.json"
+      },
+      {
+        "fileMatch": "/templates/*.json",
+        "url": "./schemas/v1-template.schema.json"
+      },
+      {
+        "fileMatch": "/.vscode/commit-templates/*.json",
+        "url": "./schemas/v1-template.schema.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "gitCommitMessageEditor.open",
+        "title": "Git Commit Message Editor: Open Editor",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "gitCommitMessageEditor.openInNewTab",
+        "title": "Git Commit Message Editor: Open in New Tab"
+      },
+      {
+        "command": "gitCommitMessageEditor.openSettings",
+        "title": "Git Commit Message Editor: Open Settings Page"
+      },
+      {
+        "command": "gitCommitMessageEditor.openConfigEditor",
+        "title": "Git Commit Message Editor: Configure Template"
+      },
+      {
+        "command": "gitCommitMessageEditor.createProjectConfig",
+        "title": "Git Commit Message Editor: Create Repo Config File"
+      },
+      {
+        "command": "gitCommitMessageEditor.amendLast",
+        "title": "Git Commit Message Editor: Amend Last Commit"
+      },
+      {
+        "command": "gitCommitMessageEditor.undoLastInsert",
+        "title": "Git Commit Message Editor: Undo Last Insert"
+      }
+    ],
+    "menus": {
+      "scm/title": [
+        {
+          "command": "gitCommitMessageEditor.open",
+          "group": "navigation",
+          "when": "scmProvider == git"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "gitCommitMessageEditor.open"
+        },
+        {
+          "command": "gitCommitMessageEditor.openInNewTab"
+        },
+        {
+          "command": "gitCommitMessageEditor.openSettings"
+        },
+        {
+          "command": "gitCommitMessageEditor.openConfigEditor"
+        },
+        {
+          "command": "gitCommitMessageEditor.createProjectConfig"
+        },
+        {
+          "command": "gitCommitMessageEditor.amendLast"
+        },
+        {
+          "command": "gitCommitMessageEditor.undoLastInsert"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Git Commit Message Editor",
+      "properties": {
+        "gitCommitMessageEditor.types": {
+          "type": "array",
+          "default": [],
+          "description": "Allowed values for the type field"
+        },
+        "gitCommitMessageEditor.scopes": {
+          "type": "array",
+          "default": [],
+          "description": "Saved scopes (auto-added when you create a new scope)"
+        },
+        "gitCommitMessageEditor.autoFillSignedOffBy": {
+          "type": "boolean",
+          "default": false,
+          "description": "Auto-fill Signed-off-by from git config user.name/user.email"
+        },
+        "gitCommitMessageEditor.autoGitmoji": {
+          "type": "boolean",
+          "default": true,
+          "description": "به‌طور خودکار ایموجی متناسب با Type انتخاب شود (فعال/غیرفعال)"
+        },
+        "gitCommitMessageEditor.detectIssueFromBranch": {
+          "type": "boolean",
+          "default": true,
+          "description": "Detect issue number from the current branch name (e.g. JIRA-123 or feature/456)"
+        },
+        "gitCommitMessageEditor.maxSubjectLength": {
+          "type": "number",
+          "default": 72,
+          "description": "Recommended maximum subject length"
+        },
+        "gitCommitMessageEditor.maxLineLength": {
+          "type": "number",
+          "default": 100,
+          "description": "Maximum line length in body before a warning"
+        },
+        "gitCommitMessageEditor.rememberFrequentValues": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show frequent type/scope values as clickable chips"
+        },
+        "gitCommitMessageEditor.showRecentCommits": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show recent commits for quick form fill"
+        },
+        "gitCommitMessageEditor.recentCommitsMaxItems": {
+          "type": "number",
+          "default": 12,
+          "description": "Maximum number of recent commits shown"
+        },
+        "gitCommitMessageEditor.emojiPrefix": {
+          "type": "boolean",
+          "default": false,
+          "description": "Prefix the message with a Gitmoji by default"
+        },
+        "gitCommitMessageEditor.keepAfterSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Keep the editor tab open after inserting into Source Control"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "package": "vsce package",
+    "vscode:prepublish": "npm run check-types && npm run bundle -- --production",
+    "compile": "npm run check-types && npm run bundle",
+    "check-types": "tsc -p ./ --noEmit",
+    "bundle": "node esbuild.js",
+    "watch": "node esbuild.js --watch"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.9.2",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "yaml": "^2.9.0"
+  }
+}

@@ -1,0 +1,258 @@
+{
+  "configVersion": "1",
+  "name": "Conventional Commits",
+  "template": [
+    "{gitmoji}{type}{scope}{subject}",
+    "",
+    "{body}",
+    "",
+    "{breakingChange}",
+    "{closes}",
+    "{resolves}",
+    "{refs}",
+    "{seeAlso}",
+    "",
+    "{signedOffBy}",
+    "{coAuthoredBy}",
+    "{reviewedBy}",
+    "{testedBy}",
+    "{ackedBy}",
+    "{reportedBy}"
+  ],
+  "tokens": [
+    {
+      "label": "Gitmoji",
+      "name": "gitmoji",
+      "type": "enum",
+      "description": "Optional emoji before the commit type",
+      "combobox": true,
+      "suffix": " ",
+      "options": [
+        {
+          "label": "✨",
+          "description": "feat"
+        },
+        {
+          "label": "🐛",
+          "description": "fix"
+        },
+        {
+          "label": "📝",
+          "description": "docs"
+        },
+        {
+          "label": "🎨",
+          "description": "style"
+        },
+        {
+          "label": "♻️",
+          "description": "refactor"
+        },
+        {
+          "label": "⚡️",
+          "description": "perf"
+        },
+        {
+          "label": "✅",
+          "description": "test"
+        },
+        {
+          "label": "🔧",
+          "description": "build/ci/chore"
+        },
+        {
+          "label": "⏪️",
+          "description": "revert"
+        },
+        {
+          "label": "🔥",
+          "description": "Remove code/files"
+        },
+        {
+          "label": "🚀",
+          "description": "Deploy"
+        },
+        {
+          "label": "💄",
+          "description": "UI / style"
+        }
+      ]
+    },
+    {
+      "label": "Type",
+      "name": "type",
+      "type": "enum",
+      "required": true,
+      "description": "Change type per Conventional Commits",
+      "options": [
+        {
+          "label": "feat",
+          "description": "A new feature"
+        },
+        {
+          "label": "fix",
+          "description": "A bug fix"
+        },
+        {
+          "label": "docs",
+          "description": "Documentation only changes"
+        },
+        {
+          "label": "style",
+          "description": "Formatting, missing semicolons, etc"
+        },
+        {
+          "label": "refactor",
+          "description": "Neither fixes a bug nor adds a feature"
+        },
+        {
+          "label": "perf",
+          "description": "A code change that improves performance"
+        },
+        {
+          "label": "test",
+          "description": "Adding or correcting tests"
+        },
+        {
+          "label": "build",
+          "description": "Build system or external dependencies"
+        },
+        {
+          "label": "ci",
+          "description": "CI configuration files and scripts"
+        },
+        {
+          "label": "chore",
+          "description": "Other changes that don't modify src or test files"
+        },
+        {
+          "label": "revert",
+          "description": "Reverts a previous commit"
+        },
+        {
+          "label": "wip",
+          "description": "Work in progress"
+        }
+      ]
+    },
+    {
+      "label": "Scope",
+      "name": "scope",
+      "type": "text",
+      "description": "Area of the codebase affected (optional)",
+      "prefix": "(",
+      "suffix": ")"
+    },
+    {
+      "label": "Subject",
+      "name": "subject",
+      "type": "text",
+      "required": true,
+      "description": "Short summary in imperative mood",
+      "maxLength": 72,
+      "prefix": ": "
+    },
+    {
+      "label": "Body",
+      "name": "body",
+      "type": "text",
+      "multiline": true,
+      "lines": 4,
+      "maxLines": 20,
+      "maxLineLength": 100,
+      "description": "Full description of the changes and why"
+    },
+    {
+      "label": "BREAKING CHANGE",
+      "name": "breakingChange",
+      "type": "text",
+      "multiline": true,
+      "conditional": true,
+      "lines": 2,
+      "prefix": "BREAKING CHANGE: ",
+      "description": "Describe the breaking change (leave empty if none)"
+    },
+    {
+      "label": "Closes",
+      "name": "closes",
+      "type": "text",
+      "prefix": "Closes: ",
+      "issueList": true,
+      "description": "Issue numbers closed by this commit, comma-separated"
+    },
+    {
+      "label": "Resolves",
+      "name": "resolves",
+      "type": "text",
+      "prefix": "Resolves: ",
+      "issueList": true,
+      "description": "Issue numbers; # is added automatically"
+    },
+    {
+      "label": "Refs",
+      "name": "refs",
+      "type": "text",
+      "prefix": "Refs: ",
+      "description": "Related issues or commits"
+    },
+    {
+      "label": "See also",
+      "name": "seeAlso",
+      "type": "text",
+      "prefix": "See also: ",
+      "description": "Additional references"
+    },
+    {
+      "label": "Signed-off-by",
+      "name": "signedOffBy",
+      "type": "text",
+      "prefix": "Signed-off-by: ",
+      "description": "Name <email>"
+    },
+    {
+      "label": "Co-authored-by",
+      "name": "coAuthoredBy",
+      "type": "text",
+      "multiline": true,
+      "prefix": "Co-authored-by: ",
+      "perLine": true,
+      "description": "One person per line: Name <email>"
+    },
+    {
+      "label": "Reviewed-by",
+      "name": "reviewedBy",
+      "type": "text",
+      "multiline": true,
+      "prefix": "Reviewed-by: ",
+      "perLine": true,
+      "description": "One person per line: Name <email>"
+    },
+    {
+      "label": "Tested-by",
+      "name": "testedBy",
+      "type": "text",
+      "multiline": true,
+      "prefix": "Tested-by: ",
+      "perLine": true,
+      "description": "One person per line: Name <email>"
+    },
+    {
+      "label": "Acked-by",
+      "name": "ackedBy",
+      "type": "text",
+      "multiline": true,
+      "prefix": "Acked-by: ",
+      "perLine": true,
+      "description": "One person per line: Name <email>"
+    },
+    {
+      "label": "Reported-by",
+      "name": "reportedBy",
+      "type": "text",
+      "multiline": true,
+      "prefix": "Reported-by: ",
+      "perLine": true,
+      "description": "One person per line: Name <email>"
+    }
+  ]
+}

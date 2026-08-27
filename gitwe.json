@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "name": "classic",
+  "remote": {
+    "name": "origin",
+    "autoPush": false,
+    "autoFetch": false
+  },
+  "baseBranches": [
+    {
+      "name": "main",
+      "protected": true
+    },
+    {
+      "name": "develop",
+      "protected": true,
+      "base": "main"
+    }
+  ],
+  "branchTypes": [
+    {
+      "name": "feature",
+      "base": "develop",
+      "target": [
+        "develop"
+      ],
+      "prefix": "feature/",
+      "aliases": [
+        "feat"
+      ]
+    },
+    {
+      "name": "release",
+      "base": "develop",
+      "target": [
+        "main",
+        "develop"
+      ],
+      "prefix": "release/",
+      "aliases": [
+        "rls",
+        "rels"
+      ]
+    },
+    {
+      "name": "hotfix",
+      "base": "main",
+      "target": [
+        "main",
+        "develop"
+      ],
+      "prefix": "hotfix/",
+      "aliases": [
+        "bug",
+        "fix",
+        "patch"
+      ]
+    },
+    {
+      "name": "support",
+      "base": "main",
+      "target": [
+        "main"
+      ],
+      "prefix": "support/"
+    }
+  ],
+  "hooks": {
+    "enabled": true,
+    "path": ".gitwe/hooks"
+  },
+  "cli": {
+    "enabled": true,
+    "interactive": true,
+    "color": true,
+    "aliases": {
+      "fs": "finish feature",
+      "rs": "release start",
+      "hf": "hotfix start",
+      "st": "status"
+    }
+  },
+  "merge": {
+    "strategy": "merge",
+    "branchTypes": {},
+    "deleteOnFinish": [
+      "feature",
+      "release",
+      "hotfix"
+    ],
+    "squash": {
+      "branchTypes": [
+        "feature"
+      ],
+      "enabled": true,
+      "default": false
+    }
+  },
+  "versioning": {
+    "enabled": true,
+    "tagPrefix": "v",
+    "format": "{{tagPrefix}}{{version}}",
+    "tag": [],
+    "branchTypes": {
+      "version": [],
+      "major": [],
+      "minor": [],
+      "patch": [],
+      "metadata": []
+    },
+    "annotated": true,
+    "pushTags": false,
+    "changelog": {
+      "enabled": false,
+      "path": "CHANGELOG.md"
+    },
+    "autoCommit": true,
+    "path": ".gitwe/VERSION.yaml",
+    "bumpRules": {},
+    "commitMessage": "chore: bump version to {{version}}",
+    "initialVersion": "0.1.0"
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "configVersion": "1",
+  "name": "Angular",
+  "template": [
+    "{type}{scope}{subject}",
+    "",
+    "{body}",
+    "",
+    "{breakingChange}",
+    "{closes}"
+  ],
+  "tokens": [
+    {
+      "label": "Type",
+      "name": "type",
+      "type": "enum",
+      "required": true,
+      "options": [
+        {
+          "label": "build"
+        },
+        {
+          "label": "ci"
+        },
+        {
+          "label": "docs"
+        },
+        {
+          "label": "feat"
+        },
+        {
+          "label": "fix"
+        },
+        {
+          "label": "perf"
+        },
+        {
+          "label": "refactor"
+        },
+        {
+          "label": "test"
+        }
+      ]
+    },
+    {
+      "label": "Scope",
+      "name": "scope",
+      "type": "text",
+      "required": true,
+      "prefix": "(",
+      "suffix": ")",
+      "description": "Required by Angular convention"
+    },
+    {
+      "label": "Subject",
+      "name": "subject",
+      "type": "text",
+      "required": true,
+      "maxLength": 72,
+      "prefix": ": "
+    },
+    {
+      "label": "Body",
+      "name": "body",
+      "type": "text",
+      "multiline": true,
+      "lines": 4,
+      "maxLines": 20,
+      "maxLineLength": 100,
+      "description": "Full description of the changes and why"
+    },
+    {
+      "label": "BREAKING CHANGE",
+      "name": "breakingChange",
+      "type": "text",
+      "multiline": true,
+      "conditional": true,
+      "prefix": "BREAKING CHANGE: "
+    },
+    {
+      "label": "Closes",
+      "name": "closes",
+      "type": "text",
+      "prefix": "Closes ",
+      "issueList": true
+    }
+  ]
+}

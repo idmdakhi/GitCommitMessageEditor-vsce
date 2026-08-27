@@ -1,0 +1,161 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/idmdakhi/git-message-editor-vscode/refs/heads/main/schemas/v1-template.schema.json",
+  "title": "Git Commit Message Editor — Template",
+  "description": "یک قالب کامل و مستقل پیام کامیت. این ساختار همان چیزی است که در پوشه‌ی داخلی افزونه (templates/) و در قالب‌های ذخیره‌شده‌ی کاربر در مخزن (.vscode/commit-templates/) استفاده می‌شود.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["configVersion", "name", "template", "tokens"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "اختیاری — برای فعال‌سازی Autocomplete/اعتبارسنجی در ادیتور."
+    },
+    "configVersion": {
+      "type": "string",
+      "const": "1",
+      "description": "نسخه‌ی ساختار قالب. در حال حاضر همیشه \"1\"."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "نام قالب. در دراپ‌داون «Active template» و بالای فرم نمایش داده می‌شود.",
+      "examples": ["Conventional Commits (Default)", "قرارداد تیم Backend"]
+    },
+    "template": {
+      "type": "array",
+      "minItems": 1,
+      "description": "ساختار نهایی پیام کامیت، خط‌به‌خط. هر {tokenName} با مقدار همان توکن جایگزین می‌شود. خطی که همه‌ی توکن‌هایش خالی باشند، به‌طور خودکار از پیام حذف می‌شود؛ خطوط خالی پیاپی نیز فشرده می‌شوند.",
+      "items": { "type": "string" },
+      "examples": [["{type}{scope}{subject}", "", "{body}", "", "{closes}"]]
+    },
+    "tokens": {
+      "type": "array",
+      "minItems": 1,
+      "description": "لیست فیلدهای فرم، به همان ترتیبی که باید نمایش داده شوند.",
+      "items": { "$ref": "#/definitions/token" }
+    }
+  },
+  "definitions": {
+    "tokenOption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label"],
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "متنی که در پیام نهایی درج می‌شود (مثلاً یک ایموجی یا کلمه)."
+        },
+        "description": {
+          "type": "string",
+          "description": "توضیح کوتاهی که زیر آیکون/برچسب گزینه نمایش داده می‌شود."
+        }
+      }
+    },
+    "token": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "name", "type"],
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "برچسب فیلد در فرم (فارسی یا انگلیسی، هرچه می‌خواهید)."
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9]*$",
+          "description": "شناسه‌ی یکتای انگلیسی این توکن؛ در template با {name} به آن ارجاع می‌دهید. فقط حروف/اعداد انگلیسی، بدون فاصله."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["text", "boolean", "enum"],
+          "description": "text: ورودی متنی آزاد (تک‌خطی یا چندخطی). boolean: چک‌باکس ساده. enum: گرید انتخابی با گزینه‌های از پیش‌تعیین‌شده."
+        },
+        "description": {
+          "type": "string",
+          "description": "توضیح راهنما زیر برچسب فیلد در فرم."
+        },
+        "prefix": {
+          "type": "string",
+          "description": "متنی که پیش از مقدار (در صورت غیرخالی بودن) اضافه می‌شود. مثال: 'Closes: ' یا '('."
+        },
+        "suffix": {
+          "type": "string",
+          "description": "متنی که پس از مقدار (در صورت غیرخالی بودن) اضافه می‌شود. مثال: ')'."
+        },
+        "required": {
+          "type": "boolean",
+          "description": "اگر true باشد، در داشبورد وضعیت به‌صورت قرمز/الزامی نمایش داده می‌شود و هشدار می‌دهد وقتی خالی است."
+        },
+        "conditional": {
+          "type": "boolean",
+          "description": "رزرو شده؛ در نسخه‌ی فعلی همه‌ی فیلدهای غیرالزامی به‌صورت خودکار پشت یک وضعیت «فعال/غیرفعال بر اساس مقدار» نمایش داده می‌شوند."
+        },
+        "value": {
+          "type": "string",
+          "description": "فقط برای type=boolean: متنی که هنگام تیک‌خوردن چک‌باکس در پیام درج می‌شود."
+        },
+        "multiline": {
+          "type": "boolean",
+          "description": "فقط برای type=text: نمایش به‌صورت textarea چندخطی به‌جای input تک‌خطی."
+        },
+        "monospace": {
+          "type": "boolean",
+          "description": "فقط برای type=text با multiline=true: استفاده از فونت monospace ادیتور."
+        },
+        "lines": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "فقط برای type=text با multiline=true: تعداد ردیف اولیه‌ی textarea."
+        },
+        "maxLines": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "فقط برای type=text با multiline=true: حداکثر تعداد خط (اطلاعاتی)."
+        },
+        "maxLength": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "فقط برای type=text: حداکثر طول کاراکتر؛ یک شمارنده‌ی زنده زیر فیلد نمایش می‌دهد."
+        },
+        "maxLineLength": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "فقط برای type=text با multiline=true: هشدار می‌دهد اگر یک خط از این طول بلندتر شود."
+        },
+        "issueList": {
+          "type": "boolean",
+          "description": "فقط برای type=text: مقدار را به‌صورت لیست شماره ایشو پردازش می‌کند و به هرکدام # اضافه می‌کند."
+        },
+        "perLine": {
+          "type": "boolean",
+          "description": "فقط برای type=text با multiline=true: prefix/suffix را روی تک‌تک خطوط غیرخالی جداگانه اعمال می‌کند."
+        },
+        "multiple": {
+          "type": "boolean",
+          "description": "فقط برای type=enum (رزرو برای توسعه‌ی آینده: انتخاب چندگانه)."
+        },
+        "separator": {
+          "type": "string",
+          "description": "فقط برای type=enum با multiple=true (رزرو برای توسعه‌ی آینده)."
+        },
+        "combobox": {
+          "type": "boolean",
+          "description": "فقط برای type=enum: نمایش به‌صورت گرید آیکونی به‌جای دراپ‌داون ساده."
+        },
+        "options": {
+          "type": "array",
+          "minItems": 1,
+          "description": "فقط برای type=enum: لیست گزینه‌ها. الزامی است.",
+          "items": { "$ref": "#/definitions/tokenOption" }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "enum" } } },
+          "then": { "required": ["options"] }
+        }
+      ]
+    }
+  }
+}
