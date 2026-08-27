@@ -8,7 +8,9 @@
     "utils",
     "schemas",
     "media",
-    "docs"
+    "docs",
+    "wiki",
+    "setting"
   ],
   "gitCommitMessageEditor.types": []
 }
