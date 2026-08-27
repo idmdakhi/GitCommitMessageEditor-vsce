@@ -33,7 +33,7 @@ export interface Token {
 }
 
 export interface PortableConfig {
-  configVersion: "1";
+  version: "1";
   name: string;
   template: string[];
   tokens: Token[];

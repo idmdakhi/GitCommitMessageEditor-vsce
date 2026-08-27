@@ -42,7 +42,7 @@ function readTemplatesFromDir(dir: string): PortableConfig[] {
       const parsed = JSON.parse(raw);
       if (isValidPortableConfig(parsed)) {
         results.push({
-          configVersion: "1",
+          version: "1",
           name: parsed.name,
           template: parsed.template,
           tokens: parsed.tokens,
@@ -176,7 +176,7 @@ export class ConfigManager {
 
     const toWrite: Record<string, unknown> = {
       $schema: schemaRelPath,
-      configVersion: "1",
+      version: "1",
       name: config.name,
       template: config.template,
       tokens: config.tokens,

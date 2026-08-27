@@ -13,7 +13,7 @@ export function loadDefaultConfig(extensionPath: string): PortableConfig {
     "[GitCommitEditor] default.json not found; using minimal fallback.",
   );
   return {
-    configVersion: "1",
+    version: "1",
     name: "Text",
     template: ["{subject}", "", "{body}"],
     tokens: [
