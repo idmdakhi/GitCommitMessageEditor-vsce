@@ -1,5 +1,5 @@
 {
-  "configVersion": "1",
+  "version": "1",
   "name": "Conventional Commits",
   "template": [
     "{gitmoji}{type}{scope}{subject}",

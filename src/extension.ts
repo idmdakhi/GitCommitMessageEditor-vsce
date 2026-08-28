@@ -3,18 +3,54 @@ import { CommitEditorPanel } from "./panels/CommitEditorPanel";
 import { ConfigEditorPanel } from "./panels/ConfigEditorPanel";
 import { ConfigManager } from "./config/configManager";
 
+let statusBarItem: vscode.StatusBarItem | undefined;
+
+function createStatusBar() {
+  const item = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Left, //right
+    90,
+  );
+  item.text = "$(edit)$(git-commit) Commit Msg";
+  item.tooltip = "Open Commit Message Editor";
+  item.command = "gitCommitMessageEditor.open";
+  item.show();
+  return item;
+}
+
+function deactivateStatusBar(statusBarItem: vscode.StatusBarItem | undefined) {
+  if (statusBarItem) {
+    statusBarItem.dispose();
+    statusBarItem = undefined;
+  }
+}
+
 export function activate(context: vscode.ExtensionContext) {
   const manager = new ConfigManager(context);
 
-  const statusBarItem = vscode.window.createStatusBarItem(
-    vscode.StatusBarAlignment.Left,
-    90,
+  // Status Bar
+  const enableStatusBar = vscode.workspace
+    .getConfiguration("gitCommitMessageEditor")
+    .get<boolean>("enableStatusBar", false);
+  if (enableStatusBar) {
+    const statusBarItem = createStatusBar();
+    context.subscriptions.push(statusBarItem);
+  }
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("gitCommitMessageEditor.enableStatusBar")) {
+        const newValue = vscode.workspace
+          .getConfiguration("gitCommitMessageEditor")
+          .get<boolean>("enableStatusBar", false);
+        if (newValue && !statusBarItem) {
+          // ایجاد مجدد
+          statusBarItem = createStatusBar();
+          context.subscriptions.push(statusBarItem);
+        } else if (!newValue && statusBarItem) {
+          deactivateStatusBar(statusBarItem);
+        }
+      }
+    }),
   );
-  statusBarItem.text = "$(edit) Commit Msg";
-  statusBarItem.tooltip = "Open Commit Message Editor";
-  statusBarItem.command = "gitCommitMessageEditor.open";
-  statusBarItem.show();
-  context.subscriptions.push(statusBarItem);
 
   context.subscriptions.push(
     vscode.commands.registerCommand("gitCommitMessageEditor.open", () => {
@@ -83,5 +119,5 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
-  // nothing to clean up; panel dispose is handled by VS Code
+  deactivateStatusBar(statusBarItem);
 }

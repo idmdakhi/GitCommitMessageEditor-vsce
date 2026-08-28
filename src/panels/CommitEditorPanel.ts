@@ -153,7 +153,7 @@ export class CommitEditorPanel {
         const idx = msg.index as number;
         const { repos } = await this.getRepoList();
         if (idx >= 0 && idx < repos.length) {
-          // ذخیره‌سازی انتخاب در workspaceState
+          // Store the selection in workspaceState
           await this.context.workspaceState.update(
             "gitCommitMessageEditor.lastRepoIndex",
             idx,
@@ -162,7 +162,7 @@ export class CommitEditorPanel {
             type: "repoChanged",
             success: true,
           });
-          // ارسال مجدد init با مخزن جدید
+          // Re‑send init with the new repository
           await this.sendInit();
         } else {
           this.panel.webview.postMessage({
@@ -182,7 +182,7 @@ export class CommitEditorPanel {
               [...scopes, scope],
               vscode.ConfigurationTarget.Workspace,
             );
-            // به‌روزرسانی UI
+            // Update UI
             await this.sendInit();
           }
         }
@@ -198,7 +198,7 @@ export class CommitEditorPanel {
               scopes.filter((s) => s !== scope),
               vscode.ConfigurationTarget.Workspace,
             );
-            // به‌روزرسانی UI
+            // Update UI
             await this.sendInit();
           }
         }
@@ -602,13 +602,13 @@ export class CommitEditorPanel {
     }
   }
 
-  // ===== متغیرهای جدید =====
+  // New variables
   private repoCache: {
     repos: GitApiRepository[];
     currentIndex: number;
   } | null = null;
 
-  // ===== متد جدید برای دریافت اطلاعات همه مخازن =====
+  // ===== New method to get information about all repositories =====
   private async getRepoList(): Promise<{
     repos: GitApiRepository[];
     currentIndex: number;
@@ -630,7 +630,7 @@ export class CommitEditorPanel {
     return { repos: api.repositories, currentIndex: index };
   }
 
-  // ===== متد جدید برای دریافت اطلاعات مخزن جاری =====
+  // ===== New method to get information about the current repository =====
   private async getCurrentRepoInfo() {
     const { repos, currentIndex } = await this.getRepoList();
     if (!repos.length || currentIndex < 0) {

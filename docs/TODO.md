@@ -1,131 +1,131 @@
-# نقشه راه یک «ویرایشگر پیام کامیت» مدرن (تجمیع سه افزونه)
+# Roadmap for a Modern “Commit Message Editor” (merging three extensions)
 
-هدف: ادغام بهترین قابلیت‌های هر سه در یک افزونه‌ی واحد و مدرن.
+Goal: Combine the best features of all three into a single, modern extension.
 
 ---
 
-## فاز ۰ — زیرساخت پایه
+## Phase 0 — Basic infrastructure
 
-- [ ] اسکلت افزونه‌ی VS Code (TypeScript + esbuild/webpack)
-- [ ] یکپارچه‌سازی با پنل Source Control (آیکون Edit روی مخزن)
-- [ ] دستور Command Palette: «Open Commit Message Editor»
-- [ ] پشتیبانی از چند مخزن باز هم‌زمان + به‌خاطرسپاری مخزن انتخابی در `workspaceState`
-- [ ] حالت «VS Code as Git Editor» (ویرایش مستقیم `COMMIT_EDITMSG` بدون فایل واقعی، با VFS)
-- [ ] ساخت پکیج `.vsix` و انتشار در Marketplace
+- [ ] Extension skeleton (TypeScript + esbuild/webpack)
+- [ ] Integration with Source Control panel (Edit icon on the repo)
+- [ ] Command Palette command: «Open Commit Message Editor»
+- [ ] Support for multiple open repositories simultaneously + remember the selected repo in `workspaceState`
+- [ ] “VS Code as Git Editor” mode (direct editing of `COMMIT_EDITMSG` without a real file, using VFS)
+- [ ] Build `.vsix` package and publish to Marketplace
 
-## فاز ۱ — فرم ساخت پیام (پایه‌ی Conventional Commits)
+## Phase 1 — Form for building the message (Conventional Commits base)
 
-- [ ] قالب پیش‌فرض: `type(scope): subject` + body + footer
-- [ ] فیلد `type` به‌صورت dropdown با لیست کامل (feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, wip, initial)
-- [ ] فیلد `scope` (متنی)
-- [ ] فیلد `subject`
-- [ ] فیلد `body` (چندخطی)
-- [ ] فیلد شرطی `BREAKING CHANGE` (چک‌باکس فعال‌سازی)
-- [ ] فیلدهای ارجاع: `Resolves` / `Refs` / `See also` / `Closes` (ورودی چندتایی ایشو، افزودن خودکار `#`)
-- [ ] فیلدهای امضا: `Signed-off-by`, `Co-authored-by`, `Reviewed-by`, `Tested-by`, `Acked-by`, `Reported-by`
-- [ ] فقط فیلدهای پرشده در پیام نهایی درج شوند
-- [ ] پیش‌نمایش زنده‌ی پیام کامیت
-- [ ] دکمه «درج در Source Control Input Box»
-- [ ] دکمه «کپی به کلیپ‌بورد»
-- [ ] دکمه «بازنشانی فرم»
+- [ ] Default template: `type(scope): subject` + body + footer
+- [ ] `type` field as a dropdown with full list (feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, wip, initial)
+- [ ] `scope` field (text)
+- [ ] `subject` field
+- [ ] `body` field (multiline)
+- [ ] Conditional `BREAKING CHANGE` field (checkbox to enable)
+- [ ] Reference fields: `Resolves` / `Refs` / `See also` / `Closes` (multi‑issue input, automatically adds `#`)
+- [ ] Signature fields: `Signed-off-by`, `Co-authored-by`, `Reviewed-by`, `Tested-by`, `Acked-by`, `Reported-by`
+- [ ] Only filled fields are included in the final message
+- [ ] Live preview of the commit message
+- [ ] “Insert into Source Control Input Box” button
+- [ ] “Copy to clipboard” button
+- [ ] “Reset form” button
 
-## فاز ۲ — قابلیت تنظیم/سفارشی‌سازی فرم (از بندرا)
+## Phase 2 — Form customisation / configuration (from Bandra)
 
-- [ ] Configuration Editor گرافیکی برای تعریف قالب‌های دلخواه
-- [ ] فرمت پیکربندی قابل حمل (JSON) با Schema رسمی برای اعتبارسنجی در VS Code
-- [ ] `staticTemplate` (نمای متنی خام) و `dynamicTemplate` (نمای فرم) به‌صورت جدا
-- [ ] تعریف Token/فیلد دلخواه با انواع: text, boolean, enum
-- [ ] ویژگی‌های هر Token: label, prefix, suffix, description, multiline, monospace, lines/maxLines, maxLength, maxLineLength, options (برای enum)، multiple/separator/combobox
-- [ ] Export/Import پیکربندی + ذخیره در تنظیمات User یا Workspace
-- [ ] چند قالب آماده‌ی نمونه: Default (Conventional Commits)، Gitmoji، Angular، ساده
-- [ ] سوییچ سریع بین قالب‌ها از منوی بالای فرم
-- [ ] تب اختصاصی با Textarea بزرگ برای نوشتن آزاد پیام
+- [ ] Graphical Configuration Editor for defining custom templates
+- [ ] Portable JSON config format with an official schema for validation in VS Code
+- [ ] Separate `staticTemplate` (raw text view) and `dynamicTemplate` (form view)
+- [ ] Define custom tokens/fields with types: text, boolean, enum
+- [ ] Token properties: label, prefix, suffix, description, multiline, monospace, lines/maxLines, maxLength, maxLineLength, options (for enum), multiple/separator/combobox
+- [ ] Export/Import configuration + save in User or Workspace settings
+- [ ] Several ready‑to‑use sample templates: Default (Conventional Commits), Gitmoji, Angular, Simple
+- [ ] Quick switch between templates from the top menu of the form
+- [ ] Dedicated tab with a large Textarea for free‑form message writing
 
-## فاز ۳ — IntelliSense داخل ادیتور متنی (از phoihos)
+## Phase 3 — IntelliSense inside the text editor (from phoihos)
 
-- [ ] فعال‌سازی Autocomplete با `Ctrl+Space` یا تایپ مستقیم
-- [ ] تکمیل خودکار `type` بر اساس Conventional Commits
-- [ ] تکمیل خودکار `scope`:
-  - [ ] مدیریت لیست Scope های کاربر (ذخیره در `.vscode/settings.json`)
-  - [ ] استخراج خودکار Scope از تاریخچه‌ی کامیت‌های موجود (grep از لاگ)
-  - [ ] گزینه‌ی «ایجاد Scope جدید» در لیست پیشنهادها
-- [ ] تکمیل Gitmoji با تریگر کاراکتر `:` (فیلتر بر اساس نوع کامیت انتخاب‌شده)
-- [ ] تکمیل `Footer Type` (Closes, Refs, BREAKING CHANGE)
-- [ ] تکمیل شماره ایشو برای `Closes` با تریگر `#` — دریافت از GitHub API (با احراز هویت برای افزایش Rate Limit)
-- [ ] تکمیل کامیت برای `Refs` از تاریخچه‌ی محلی مخزن
-- [ ] Hover روی Type/Scope/Emoji در خط اول و روی Type/Issues/Commits در فوترها
-- [ ] CodeLens «Recent commits...» برای انتخاب سریع پیام کامیت قبلی (با شورتکات اختصاصی)
-- [ ] رعایت خودکار قاعده‌ی Git 50/72 (ruler در تنظیمات ادیتور)
+- [ ] Enable Autocomplete with `Ctrl+Space` or direct typing
+- [ ] Auto‑complete `type` based on Conventional Commits
+- [ ] Auto‑complete `scope`:
+  - [ ] Manage user’s scope list (saved in `.vscode/settings.json`)
+  - [ ] Auto‑extract Scope from existing commit history (grep from log)
+  - [ ] “Create new Scope” option in the suggestion list
+- [ ] Gitmoji completion triggered by `:` character (filter by selected commit type)
+- [ ] `Footer Type` completion (Closes, Refs, BREAKING CHANGE)
+- [ ] Issue number completion for `Closes` triggered by `#` — fetch from GitHub API (with authentication to increase Rate Limit)
+- [ ] Commit completion for `Refs` from local repository history
+- [ ] Hover on Type/Scope/Emoji in the first line and on Type/Issues/Commits in footers
+- [ ] CodeLens «Recent commits...» for quick selection of a previous commit message (with dedicated shortcut)
+- [ ] Automatic enforcement of Git 50/72 rule (ruler in editor settings)
 
-## فاز ۴ — هوش مصنوعی و اتوماسیون هوشمند
+## Phase 4 — Artificial Intelligence and smart automation
 
-- [ ] «پیش‌نویس با هوش مصنوعی»: خواندن diff تغییرات stage‌شده و پیشنهاد type/scope/subject/body
-- [ ] استفاده از API رسمی `vscode.lm` (سازگار با GitHub Copilot Chat) بدون نیاز به کلید API جدا
-- [ ] پیام خطای واضح در صورت غیرفعال بودن Copilot Chat
-- [ ] تشخیص شماره‌ی ایشو از نام برنچ (مثل `JIRA-123`, `feature/456`) و افزودن سریع به Resolves
-- [ ] پیشنهاد Scope از روی مسیر فایل‌های Stage‌شده (`git diff --staged --name-only`)
-- [ ] دکمه‌ی «تکمیل خودکار پیشنهادها» که فقط فیلدهای خالی را پر می‌کند
+- [ ] “Draft with AI”: read the staged changes diff and suggest type/scope/subject/body
+- [ ] Use the official `vscode.lm` API (compatible with GitHub Copilot Chat) – no separate API key needed
+- [ ] Clear error message if Copilot Chat is disabled
+- [ ] Detect issue number from branch name (e.g. `JIRA-123`, `feature/456`) and quickly add it to Resolves
+- [ ] Suggest Scope from the paths of staged files (`git diff --staged --name-only`)
+- [ ] “Autofill suggestions” button that fills only empty fields
 
-## فاز ۵ — تجربه کاربری و بهره‌وری
+## Phase 5 — User experience and productivity
 
-- [ ] داشبورد وضعیت چسبان (sticky) بالای فرم:
-  - [ ] چیپ وضعیت هر بخش (سبز=کامل / قرمز=الزامی‌وناقص / خاکستری=اختیاری)
-  - [ ] کلیک روی چیپ → فوکوس روی همان فیلد
-  - [ ] شمارنده پیشرفت («X از N بخش»)
-  - [ ] نشان تعداد هشدارها با لینک مستقیم به فیلد مربوطه
-- [ ] اعتبارسنجی بلادرنگ:
-  - [ ] شمارنده کاراکتر برای subject با حداکثر قابل تنظیم
-  - [ ] هشدار خطوط طولانی در body
-  - [ ] Style Lint: هشدار برای نقطه پایانی، حرف بزرگ ابتدایی، فعل گذشته به‌جای امری
-- [ ] به‌خاطرسپاری پرکاربردترین مقادیر type/scope به‌صورت چیپ‌های کلیک‌پذیر
-- [ ] مرور و انتخاب از لیست کامیت‌های اخیر (پرکردن خودکار فرم در صورت تطابق با الگو)
-- [ ] باز کردن فرم/داشبورد در یک تب کامل وسط صفحه (علاوه بر Sidebar)
-- [ ] هماهنگی state بین نمونه‌ی Sidebar و تب کامل از طریق workspaceState/globalState
-- [ ] آیتم نوار وضعیت (Status Bar) برای دسترسی سریع
-- [ ] ذخیره/بازیابی پیش‌نویس فرم حتی بعد از بستن VS Code (`workspaceState` + `webview.getState`)
+- [ ] Sticky status dashboard at the top of the form:
+  - [ ] Status chip for each section (green=complete / red=required&missing / grey=optional)
+  - [ ] Click on a chip → focus on that field
+  - [ ] Progress counter («X of N sections»)
+  - [ ] Show number of warnings with a direct link to the relevant field
+- [ ] Live validation:
+  - [ ] Character counter for subject with configurable maximum
+  - [ ] Warning for long lines in body
+  - [ ] Style Lint: warning for trailing period, initial capital letter, past‑tense verb instead of imperative
+- [ ] Remember most frequently used type/scope values as clickable chips
+- [ ] Browse and select from recent commits (auto‑fill the form if the pattern matches)
+- [ ] Open the form/dashboard in a full‑sized tab in the centre (in addition to the Sidebar)
+- [ ] Sync state between Sidebar and full‑tab instances via workspaceState/globalState
+- [ ] Status Bar item for quick access
+- [ ] Save/restore form draft even after closing VS Code (`workspaceState` + `webview.getState`)
 
-## فاز ۶ — عملیات گیت مکمل
+## Phase 6 — Additional Git operations
 
-- [ ] ویرایش (Amend) آخرین کامیت: بارگذاری پیام قبلی در فرم + جایگزینی با تأیید مودال
-- [ ] واگرد (Undo) آخرین «درج در Source Control» با بازگرداندن مقدار قبلی input box
-- [ ] دکمه‌ی «قالب‌بندی خودکار body» (word-wrap بر اساس maxLineLength، حفظ پاراگراف‌ها)
-- [ ] ثبت قالب به‌عنوان `commit.template` رسمی گیت (ساخت `.gitmessage` + `git config commit.template`) برای استفاده حتی از ترمینال
+- [ ] Amend last commit: load the previous message into the form + replace after modal confirmation
+- [ ] Undo last “Insert into Source Control” – restore the previous input box value
+- [ ] “Auto‑format body” button (word‑wrap based on maxLineLength, preserving paragraphs)
+- [ ] Register template as official Git `commit.template` (create `.gitmessage` + `git config commit.template`) so it can be used even from the terminal
 
-## فاز ۷ — تنظیمات و شخصی‌سازی سراسری
+## Phase 7 — Global settings and customisation
 
-- [ ] `types` قابل تنظیم از `settings.json`
-- [ ] `autoFillSignedOffBy` (پرکردن خودکار از `git config user.name/email`)
+- [ ] `types` configurable from `settings.json`
+- [ ] `autoFillSignedOffBy` (auto‑fill from `git config user.name/email`)
 - [ ] `detectIssueFromBranch`
 - [ ] `maxSubjectLength`, `maxLineLength`
 - [ ] `rememberFrequentValues`
 - [ ] `showRecentCommits` (+ `maxItems`)
-- [ ] `emojiPrefix` (فعال‌سازی پیش‌فرض Gitmoji)
-- [ ] `editor.keepAfterSave` (بستن یا نبستن تب بعد از ذخیره)
+- [ ] `emojiPrefix` (enable Gitmoji by default)
+- [ ] `editor.keepAfterSave` (keep or close the tab after saving)
 - [ ] `intelliSense.completion.logScopes.enabled`
 - [ ] `intelliSense.completion.issues.pageSize`
 - [ ] `intelliSense.hover.enabled`
 
-## فاز ۸ — چندزبانگی و مستندسازی
+## Phase 8 — Multilingual support and documentation
 
-- [ ] i18n کامل رابط کاربری (فارسی + انگلیسی حداقل)
-- [ ] مستندات README کامل با اسکرین‌شات‌ها و GIF
-- [ ] JSON Schema عمومی برای فایل پیکربندی قابل حمل
-- [ ] نمونه‌قالب‌های آماده (Default / Gitmoji / Angular / زبان‌های دیگر مثل چینی)
+- [ ] Full i18n of the UI (Persian + English at minimum)
+- [ ] Complete README documentation with screenshots and GIFs
+- [ ] Public JSON Schema for the portable config file
+- [ ] Sample ready‑to‑use templates (Default / Gitmoji / Angular / other languages such as Chinese)
 
-## فاز ۹ — قابلیت‌های آینده (اختیاری / نیاز به بررسی بیشتر)
+## Phase 9 — Future features (optional / needs further investigation)
 
-- [ ] آمار و نمودار کامیت‌ها (نیازمند Chart.js در یک Webview جدا)
-- [ ] نمایش وضعیت CI/CD (نیازمند اتصال به API سرویس‌های CI و مدیریت توکن)
-- [ ] اجرای خودکار pre-commit hookها — **توصیه: انجام نشود**، بهتر است از طریق Husky/lint-staged مدیریت شود تا کنترل کاربر حفظ شود
+- [ ] Commit statistics and charts (would require Chart.js in a separate Webview)
+- [ ] Display CI/CD status (would require connection to CI service APIs and token management)
+- [ ] Automatic execution of pre‑commit hooks — **recommendation: do not implement** – better managed through Husky/lint‑staged to keep user control
 
 ---
 
-## اولویت‌بندی پیشنهادی برای MVP نسخه‌ی مدرن
+## Suggested prioritisation for the modern MVP
 
-1. فاز ۰ و ۱ (زیرساخت + فرم پایه‌ی Conventional Commits)
-2. فاز ۲ (Config Editor قابل تنظیم — تمایز اصلی نسبت به رقبای ساده‌تر)
-3. فاز ۳ (IntelliSense در ادیتور واقعی — نقطه‌قوت phoihos که در بقیه نیست)
-4. فاز ۵ (داشبورد وضعیت + اعتبارسنجی — تجربه‌ی کاربری متمایزکننده)
-5. فاز ۴ (AI Draft — قابلیت جذاب برای معرفی نسخه‌ی ۱.۰)
-6. فاز ۶، ۷، ۸ به‌صورت تدریجی در نسخه‌های بعدی
-7. فاز ۹ فقط در صورت تقاضای واقعی کاربران
+1. Phase 0 and 1 (infrastructure + basic Conventional Commits form)
+2. Phase 2 (Configurable Editor – the main differentiator from simpler competitors)
+3. Phase 3 (IntelliSense in the actual editor – phoihos’ strength not found elsewhere)
+4. Phase 5 (Status dashboard + validation – a distinctive user experience)
+5. Phase 4 (AI Draft – an attractive feature for the 1.0 release)
+6. Phases 6, 7, 8 gradually in later releases
+7. Phase 9 only if there is real user demand

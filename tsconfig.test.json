@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "out-test",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "types": ["jest", "node"],
+    "isolatedModules": true,
+    "baseUrl": ".",
+    "paths": {
+      "vscode": ["./tests/__mocks__/vscode.ts"]
+    }
+  },
+  "exclude": ["node_modules", ".vscode-test", "out"]
+}

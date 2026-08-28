@@ -8,13 +8,12 @@ export function loadDefaultConfig(extensionPath: string): PortableConfig {
     const raw = fs.readFileSync(defaultPath, "utf8");
     return JSON.parse(raw) as PortableConfig;
   }
-  // اگر فایل default.json وجود نداشت، یک قالب حداقلی بسازید تا افزونه از کار نیفتد
-  // (اما ترجیحاً این حالت نباید رخ دهد)
+  // If the default.json file does not exist, create a minimal template so that the plugin does not break (but preferably this should not happen)
   console.warn(
     "[GitCommitEditor] default.json not found; using minimal fallback.",
   );
   return {
-    configVersion: "1",
+    version: "1",
     name: "Text",
     template: ["{subject}", "", "{body}"],
     tokens: [

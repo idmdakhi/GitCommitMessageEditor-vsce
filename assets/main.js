@@ -16,11 +16,10 @@
   let configSource = "";
   let hasProjectConfig = false;
 
-  // اگر فعال باشد، انتخاب هر Type به‌صورت خودکار ایموجی متناظرش را هم
-  // در Gitmoji قرار می‌دهد (پیش‌فرض: فعال)
+  // If enabled, selecting any Type will automatically set the corresponding emoji in Gitmoji (default: enabled)
   let autoGitmoji = true;
 
-  // ===== پشتیبانی از چند مخزن =====
+  // ===== Support for multiple repositories =====
   let repos = [];
   let currentRepoIndex = 0;
 
@@ -30,16 +29,16 @@
     stagedCount: 0,
   };
 
-  // جلوگیری از ثبت چندباره listenerهای سراسری
+  // Prevent multiple registrations of global listeners
   let globalListenersBound = false;
 
-  // وضعیت عملیات در حال اجرا
+  // Status of ongoing operations
   const pendingActions = {
     autoSuggest: false,
     aiDraft: false,
   };
 
-  // ===== دریافت پیام‌های VS Code =====
+  // ===== Receive VS Code messages =====
   window.addEventListener("message", handleMessage);
 
   function handleMessage(event) {
@@ -158,15 +157,12 @@
     });
   }
 
-  // ===== درخواست اطلاعات اولیه =====
+  // ===== Request initial information =====
   vscode.postMessage({
     type: "ready",
   });
 
-  // =====================================================
-  // Helpers
-  // =====================================================
-
+  // ===== Helpers =====
   function isCollapsible(token) {
     if (!token) return false;
     if (token.required) return false;
@@ -237,9 +233,7 @@
       .join(", ");
   }
 
-  // =====================================================
-  // Suggestions / AI
-  // =====================================================
+  // ===== Suggestions / AI =====
 
   function applyAutoSuggestions(suggestions) {
     if (!suggestions || typeof suggestions !== "object") {
@@ -272,7 +266,7 @@
     }
   }
 
-  // پاسخ درخواست «دریافت از Git» برای فیلد Signed-off-by
+  // Response to "fetch from Git" request for the Signed-off-by field
   function applyGitIdentityToSignedOffBy(value, errorMessage) {
     const gitIdentityBtn = document.getElementById("fetch-git-identity");
 
@@ -344,8 +338,7 @@
 
     let header = lines[0] || "";
 
-    // اگر خط اول با یک ایموجی شروع شده (مثلاً «✨ feat: ...»)، آن را
-    // جدا کرده و در Gitmoji قرار می‌دهیم
+    // If the first line starts with an emoji (e.g. '✨ feat: ...'), extract it and put it in Gitmoji
     const emojiMatch = header.match(/^(\p{Extended_Pictographic}\uFE0F?)\s+/u);
 
     if (emojiMatch && findToken("gitmoji")) {
@@ -372,9 +365,7 @@
       values.subject = header;
     }
 
-    // بقیه‌ی خط‌ها (بدنه + ارجاعات ایشو + trailerها) را جدا می‌کنیم:
-    // خط‌هایی که با پیشوند شناخته‌شده‌ی یک فیلد (مثل «Signed-off-by: »،
-    // «Closes: » و ...) شروع می‌شوند، در همان فیلد قرار می‌گیرند — نه Body
+    // Separate the remaining lines (body + issue references + trailers): lines that start with a known field prefix (e.g. 'Signed-off-by: ', 'Closes: ', etc.) go into that field — not Body
     const restLines = lines.slice(1);
 
     const prefixTokens = (config.tokens || [])
@@ -458,9 +449,7 @@
     render();
   }
 
-  // =====================================================
   // Template Engine
-  // =====================================================
 
   function computeTokenOutput(token) {
     if (!token) return "";
@@ -554,9 +543,7 @@
     return output.join("\n");
   }
 
-  // =====================================================
   // Validation
-  // =====================================================
 
   function computeWarnings() {
     if (!config?.tokens) return [];
@@ -714,9 +701,7 @@
     }
   }
 
-  // =====================================================
   // UI Helpers
-  // =====================================================
 
   function showAiStatus(text, isError = false) {
     const element = document.getElementById("ai-status");
@@ -945,9 +930,7 @@
     button.textContent = originalLabel;
   }
 
-  // =====================================================
   // Render
-  // =====================================================
 
   function render() {
     if (!config) return;
@@ -1120,9 +1103,7 @@
     });
   }
 
-  // =====================================================
   // Dashboard
-  // =====================================================
 
   function renderChips(warnings) {
     const row = document.getElementById("chip-row");
@@ -1226,9 +1207,7 @@
     }
   }
 
-  // =====================================================
   // Form
-  // =====================================================
 
   function renderForm() {
     const formElement = document.getElementById("form");
@@ -1241,8 +1220,7 @@
     const trailerFields = [];
 
     for (const token of config.tokens) {
-      // Gitmoji دیگر جعبه‌ی جدای خودش را ندارد؛ داخل گرید Type و بالای
-      // هر ستون (مثلاً ✨ بالای feat) نمایش داده می‌شود
+      // Gitmoji no longer has its own separate box; it is displayed inside the Type grid above each column (e.g. ✨ above feat)
       if (token.name === "gitmoji" && hasTypeToken) {
         continue;
       }
@@ -1252,16 +1230,13 @@
         continue;
       }
 
-      // فیلدهای متنی تک‌خطی (Scope، Closes، Refs، Signed-off-by و ...)
-      // به سبک فشرده‌ی «Issue references» در یک گرید نمایش داده می‌شوند
+      // Single-line text fields (Scope, Closes, Refs, Signed-off-by, etc.) are displayed in a compact 'Issue references' grid
       if (token.type === "text" && !token.multiline) {
         pillFields.push(token);
         continue;
       }
 
-      // Body در تمام عرض می‌ماند؛ بقیه‌ی فیلدهای چندخطی (BREAKING CHANGE،
-      // Co-authored-by، Reviewed-by، Tested-by، Acked-by، Reported-by)
-      // در یک شبکه‌ی دوستونه کنار هم قرار می‌گیرند
+      // Body stays full width; the remaining multiline fields (BREAKING CHANGE, Co-authored-by, Reviewed-by, Tested-by, Acked-by, Reported-by) are placed side by side in a two‑column grid
       if (token.name === "body") {
         bodyFields.push(token);
       } else {
@@ -1332,11 +1307,7 @@
     }
   }
 
-  // =====================================================
-  // Compact detail grid — every optional single-line field
-  // (issue references, scope, signed-off-by, ...) rendered
-  // in the same pill style, with no enable/disable checkbox
-  // =====================================================
+  // Compact detail grid — every optional single-line field (issue references, scope, signed-off-by, ...) rendered in the same pill style, with no enable/disable checkbox
 
   function renderDetailGrid(tokens) {
     const cells = tokens
@@ -1344,8 +1315,7 @@
         const value = fieldValue(token.name);
         const active = !!value.trim();
 
-        // اسکوپ به‌خاطر داشتن چیپ‌های ذخیره‌شده و دکمه‌ی ذخیره،
-        // به‌صورت عمودی (ستونی) و در تمام عرض گرید نمایش داده می‌شود
+        // Scope is displayed vertically (stacked) and spans the full grid width because it has saved chips and a save button
         const needsExtra = token.name === "scope";
 
         if (needsExtra) {
@@ -1575,8 +1545,7 @@
         }));
       }
 
-      // فیلد Type مورد خاص است: هر ستون یک ایموجی متناظر (اگر پیدا شود)
-      // بالای برچسب نوع نشان می‌دهد — نمونه: ✨ بالای feat
+      // The Type field is special: each column shows a corresponding emoji (if found) above the type label — e.g. ✨ above feat
       if (token.name === "type") {
         return renderTypeWithEmojiGrid(token, id, options);
       }
@@ -1611,9 +1580,7 @@
     `;
   }
 
-  // از روی توضیح گزینه‌های Gitmoji (مثلاً "feat — یک قابلیت جدید")
-  // یک نگاشت type→emoji می‌سازد؛ اگر یک ایموجی چند نوع را پوشش دهد
-  // (مثلاً "build/ci/chore")، برای هرکدام جداگانه ثبت می‌شود
+  // Builds a type→emoji mapping from Gitmoji option descriptions (e.g. 'feat — a new feature'); if an emoji covers multiple types (e.g. 'build/ci/chore'), it is recorded separately for each
   function buildTypeEmojiMap() {
     const gitmojiToken = findToken("gitmoji");
     const map = {};
@@ -1639,9 +1606,7 @@
     return map;
   }
 
-  // گرید ترکیبی Type + Gitmoji: هر خانه یک ایموجی متناظر (در صورت وجود)
-  // را بالای برچسب نوع نشان می‌دهد و با یک کلیک هم Type و هم Gitmoji
-  // را همزمان تنظیم می‌کند
+  // Combined Type + Gitmoji grid: each cell shows the corresponding emoji (if any) above the type label, and a single click sets both Type and Gitmoji simultaneously
   function renderTypeWithEmojiGrid(token, id, options) {
     const current = fieldValue(token.name);
     const emojiMap = buildTypeEmojiMap();
@@ -1721,8 +1686,7 @@
           ? option.description.split(" — ").pop()
           : "";
 
-        // برچسب‌های ایموجی (یک یا دو نویسه‌ی تصویری) بزرگ‌تر دیده می‌شوند؛
-        // برچسب‌های کلمه‌ای (مثل feat/fix/refactor) با اندازه‌ی جمع‌وجورتر
+        // Emoji labels (one or two pictorial characters) are displayed larger; word labels (like feat/fix/refactor) are more compact
         const isEmojiLabel = /\p{Extended_Pictographic}/u.test(label);
 
         return `
@@ -1781,9 +1745,7 @@
     `;
   }
 
-  // =====================================================
   // Field Binding
-  // =====================================================
 
   function bindField(token) {
     const element = document.getElementById(`f-${token.name}`);
@@ -1805,8 +1767,7 @@
     const update = () => {
       setValue(token.name, element.value);
 
-      // هیچ‌کدام از فیلدهای اختیاری دیگر چک‌باکس «فعال‌سازی» جداگانه
-      // ندارند: با تایپ خودکار فعال و با خالی‌شدن خودکار غیرفعال می‌شوند
+      // None of the other optional fields have a separate 'enable' checkbox: they automatically activate when typed in and deactivate when emptied
       if (isCollapsible(token)) {
         conditionalEnabled[token.name] = element.value.trim() !== "";
       }
@@ -1835,8 +1796,7 @@
             conditionalEnabled[token.name] = nextValue.trim() !== "";
           }
 
-          // برخی خانه‌ها یک فیلد ثانویه را هم همزمان تنظیم می‌کنند
-          // (مثلاً کلیک روی «feat» در گرید Type، Gitmoji را هم به ✨ تغییر می‌دهد)
+          // Some cells also set a secondary field at the same time (e.g. clicking 'feat' in the Type grid also changes Gitmoji to ✨)
           const alsoSet = chip.getAttribute("data-also-set");
 
           if (alsoSet) {
@@ -1895,7 +1855,7 @@
         .querySelectorAll("[data-remove-scope]")
         .forEach((removeButton) => {
           removeButton.addEventListener("click", (event) => {
-            // جلوگیری از فعال‌شدن کلیک روی خودِ چیپ (که مقدار اسکوپ را ست می‌کند)
+            // Prevent the click from activating the chip itself (which sets the scope value)
             event.stopPropagation();
 
             const scopeToRemove =
@@ -1920,9 +1880,7 @@
     }
   }
 
-  // =====================================================
   // Preview
-  // =====================================================
 
   function updatePreviewAndChips() {
     const message = buildMessage();
@@ -1971,9 +1929,7 @@
     renderChips(computeWarnings());
   }
 
-  // =====================================================
   // Recent Commits
-  // =====================================================
 
   function renderRecentCommits() {
     const container = document.getElementById("recent-commits");
@@ -2008,9 +1964,7 @@
     });
   }
 
-  // =====================================================
   // Toolbar
-  // =====================================================
 
   function bindToolbar() {
     bindClick("btn-insert", () => {
@@ -2104,9 +2058,7 @@
     }
   }
 
-  // =====================================================
   // Collapsible
-  // =====================================================
 
   function bindCollapsibles() {
     document.querySelectorAll("[data-collapsible-toggle]").forEach((header) => {
@@ -2126,9 +2078,7 @@
     });
   }
 
-  // =====================================================
   // Global Listeners
-  // =====================================================
 
   function bindGlobalListeners() {
     document.addEventListener("click", (event) => {
@@ -2154,9 +2104,7 @@
     });
   }
 
-  // =====================================================
   // Escape Helpers
-  // =====================================================
 
   function escapeHtml(value) {
     return String(value ?? "")
