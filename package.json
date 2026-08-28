@@ -2,9 +2,25 @@
   "name": "gitcme",
   "displayName": "Gitcme » Git Commit Message Editor",
   "description": "Modern commit message editor with configurable form, IntelliSense, and AI draft",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "publisher": "idmdakhi",
-  "keywords": [],
+  "keywords": [
+    "git",
+    "commit",
+    "message",
+    "editor",
+    "conventional-commits",
+    "gitmoji",
+    "ai",
+    "copilot",
+    "template",
+    "form",
+    "vscode",
+    "scm",
+    "productivity",
+    "commit-message",
+    "semantic-commit"
+  ],
   "author": "",
   "homepage": "https://github.com/idmdakhi/GitCommitMessageEditor-vsce#readme",
   "license": "MIT",
@@ -16,11 +32,12 @@
     "url": "https://github.com/idmdakhi/GitCommitMessageEditor-vsce/issues"
   },
   "directories": {
+    "assets": "assets",
     "doc": "docs",
-    "media": "media",
     "schemas": "schemas",
     "src": "src",
-    "templates": "templates"
+    "templates": "templates",
+    "tests": "tests"
   },
   "engines": {
     "vscode": "^1.85.0"
