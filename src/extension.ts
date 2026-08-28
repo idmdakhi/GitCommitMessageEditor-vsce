@@ -5,6 +5,25 @@ import { ConfigManager } from "./config/configManager";
 
 let statusBarItem: vscode.StatusBarItem | undefined;
 
+function createStatusBar() {
+  const item = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Left, //right
+    90,
+  );
+  item.text = "$(edit)$(git-commit) Commit Msg";
+  item.tooltip = "Open Commit Message Editor";
+  item.command = "gitCommitMessageEditor.open";
+  item.show();
+  return item;
+}
+
+function deactivateStatusBar(statusBarItem: vscode.StatusBarItem | undefined) {
+  if (statusBarItem) {
+    statusBarItem.dispose();
+    statusBarItem = undefined;
+  }
+}
+
 export function activate(context: vscode.ExtensionContext) {
   const manager = new ConfigManager(context);
 
@@ -13,14 +32,7 @@ export function activate(context: vscode.ExtensionContext) {
     .getConfiguration("gitCommitMessageEditor")
     .get<boolean>("enableStatusBar", false);
   if (enableStatusBar) {
-    const statusBarItem = vscode.window.createStatusBarItem(
-      vscode.StatusBarAlignment.Left, //right
-      90,
-    );
-    statusBarItem.text = "$(edit)$(git-commit) Commit Msg";
-    statusBarItem.tooltip = "Open Commit Message Editor";
-    statusBarItem.command = "gitCommitMessageEditor.open";
-    statusBarItem.show();
+    const statusBarItem = createStatusBar();
     context.subscriptions.push(statusBarItem);
   }
   context.subscriptions.push(
@@ -31,18 +43,10 @@ export function activate(context: vscode.ExtensionContext) {
           .get<boolean>("enableStatusBar", false);
         if (newValue && !statusBarItem) {
           // ایجاد مجدد
-          statusBarItem = vscode.window.createStatusBarItem(
-            vscode.StatusBarAlignment.Right,
-            100,
-          );
-          statusBarItem.text = "$(git-commit) Commit";
-          statusBarItem.tooltip = "Open Commit Message Editor";
-          statusBarItem.command = "gitCommitMessageEditor.open";
-          statusBarItem.show();
+          statusBarItem = createStatusBar();
           context.subscriptions.push(statusBarItem);
         } else if (!newValue && statusBarItem) {
-          statusBarItem.dispose();
-          statusBarItem = undefined;
+          deactivateStatusBar(statusBarItem);
         }
       }
     }),
@@ -115,8 +119,5 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
-  if (statusBarItem) {
-    statusBarItem.dispose();
-    statusBarItem = undefined;
-  }
+  deactivateStatusBar(statusBarItem);
 }
