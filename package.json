@@ -1,6 +1,6 @@
 {
   "name": "gitcme",
-  "displayName": "Gitcme - Git Commit Message Editor",
+  "displayName": "Gitcme » Git Commit Message Editor",
   "description": "Modern commit message editor with configurable form, IntelliSense, and AI draft",
   "version": "1.0.0",
   "publisher": "idmdakhi",
@@ -132,8 +132,13 @@
         },
         "gitCommitMessageEditor.autoGitmoji": {
           "type": "boolean",
-          "default": true,
+          "default": false,
           "description": "Automatically select the emoji matching the Type (enable/disable)"
+        },
+        "gitCommitMessageEditor.enableStatusBar": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show status in VS Code status bar"
         },
         "gitCommitMessageEditor.detectIssueFromBranch": {
           "type": "boolean",
@@ -180,8 +185,8 @@
   },
   "scripts": {
     "package": "vsce package",
-    "vscode:prepublish": "npm run check-types && npm run bundle -- --production",
-    "compile": "npm run check-types && npm run bundle",
+    "vscode:prepublish": "npm run check-types && npm run compile",
+    "compile": "npm run check-types && npm run bundle -- --production",
     "check-types": "tsc -p ./ --noEmit",
     "bundle": "node esbuild.js",
     "watch": "node esbuild.js --watch"
