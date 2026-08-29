@@ -95,6 +95,11 @@
       {
         "command": "gitCommitMessageEditor.undoLastInsert",
         "title": "Git Commit Message Editor: Undo Last Insert"
+      },
+      {
+        "command": "gitCommitMessageEditor.openAsGitEditor",
+        "title": "Git Commit Message Editor: Open as Git Editor (COMMIT_EDITMSG)",
+        "icon": "$(edit)"
       }
     ],
     "menus": {
@@ -126,6 +131,9 @@
         },
         {
           "command": "gitCommitMessageEditor.undoLastInsert"
+        },
+        {
+          "command": "gitCommitMessageEditor.openAsGitEditor"
         }
       ]
     },

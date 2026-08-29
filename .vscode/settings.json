@@ -12,5 +12,7 @@
     "wiki",
     "setting"
   ],
-  "gitCommitMessageEditor.types": []
+  "gitCommitMessageEditor.types": [],
+  // "editor.rulers": [50, 72],
+  "files.trimTrailingWhitespace": true
 }

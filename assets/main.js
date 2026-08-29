@@ -85,6 +85,12 @@
         applyGitIdentityToSignedOffBy(msg.value || "", msg.message || "");
         break;
 
+      case "openAsGitEditor":
+        vscode.commands.executeCommand(
+          "gitCommitMessageEditor.openAsGitEditor",
+        );
+        break;
+
       default:
         break;
     }
@@ -832,6 +838,10 @@
         id: "btn-autofill",
         label: "⚡ Suggestions",
         cls: "secondary",
+      },
+      {
+        id: "btn-git-editor",
+        label: "📝 Git Editor",
       },
     ];
 
@@ -2000,6 +2010,12 @@
 
       vscode.postMessage({
         type: "requestAutoSuggest",
+      });
+    });
+
+    bindClick("btn-git-editor", () => {
+      vscode.postMessage({
+        type: "openAsGitEditor",
       });
     });
 
