@@ -49,7 +49,7 @@ export class CommitEditorPanel {
         enableScripts: true,
         retainContextWhenHidden: true,
         localResourceRoots: [
-          vscode.Uri.joinPath(context.extensionUri, "media"),
+          vscode.Uri.joinPath(context.extensionUri, "assets"),
         ],
       },
     );
@@ -569,10 +569,10 @@ export class CommitEditorPanel {
   private getHtml(): string {
     const webview = this.panel.webview;
     const scriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.context.extensionUri, "media", "main.js"),
+      vscode.Uri.joinPath(this.context.extensionUri, "assets", "main.js"),
     );
     const styleUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.context.extensionUri, "media", "main.css"),
+      vscode.Uri.joinPath(this.context.extensionUri, "assets", "main.css"),
     );
     const nonce = getNonce();
 
