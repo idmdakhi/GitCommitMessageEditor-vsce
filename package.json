@@ -202,7 +202,7 @@
   },
   "scripts": {
     "package": "vsce package",
-    "vscode:prepublish": "npm run check-types && npm run compile",
+    "vscode:prepublish": "npm run compile",
     "compile": "npm run check-types && npm run bundle -- --production",
     "check-types": "tsc -p ./ --noEmit",
     "bundle": "node esbuild.js",
