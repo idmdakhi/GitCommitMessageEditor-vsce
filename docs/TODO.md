@@ -39,7 +39,7 @@ Goal: Combine the best features of all three into a single, modern extension.
 - [x] Export/Import configuration + save in User or Workspace settings
 - [x] Several ready‑to‑use sample templates: Default (Conventional Commits), Gitmoji, Angular, Simple
 - [x] Quick switch between templates from the top menu of the form
-- [ ] Dedicated tab with a large Textarea for free‑form message writing
+- [x] Dedicated tab with a large Textarea for free‑form message writing
 
 ## Phase 3 — IntelliSense inside the text editor (from phoihos)
 
@@ -88,7 +88,7 @@ Goal: Combine the best features of all three into a single, modern extension.
 
 - [x] Amend last commit: load the previous message into the form + replace after modal confirmation
 - [x] Undo last “Insert into Source Control” – restore the previous input box value
-- [ ] “Auto‑format body” button (word‑wrap based on maxLineLength, preserving paragraphs)
+- [x] “Auto‑format body” button (word‑wrap based on maxLineLength, preserving paragraphs)
 - [x] Register template as official Git `commit.template` (create `.gitmessage` + `git config commit.template`) so it can be used even from the terminal
 
 ## Phase 7 — Global settings and customisation

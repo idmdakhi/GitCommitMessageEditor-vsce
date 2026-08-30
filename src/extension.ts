@@ -27,8 +27,28 @@ function deactivateStatusBar(
   return undefined;
 }
 
+function updateScmTitleCommand() {
+  const config = vscode.workspace.getConfiguration("gitCommitMessageEditor");
+  const command = config.get<string>("scmTitleCommand", "open");
+  vscode.commands.executeCommand(
+    "setContext",
+    "gitcme.scmTitleCommand",
+    command,
+  );
+}
+
 export function activate(context: vscode.ExtensionContext) {
   const manager = new ConfigManager(context);
+
+  updateScmTitleCommand();
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("gitCommitMessageEditor.scmTitleCommand")) {
+        updateScmTitleCommand();
+      }
+    }),
+  );
+
   const gitEditorProvider = new GitEditorProvider(context);
 
   // ===== ثبت provider برای scheme gitcme =====
@@ -89,7 +109,7 @@ export function activate(context: vscode.ExtensionContext) {
       () => {
         vscode.commands.executeCommand(
           "workbench.action.openSettings",
-          "@ext:idmdakhi.GitCommitMessageEditor-vsce",
+          "GitCommitMessageEditor",
         );
       },
     ),

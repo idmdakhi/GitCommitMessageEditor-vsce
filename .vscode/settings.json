@@ -1,5 +1,5 @@
 {
-  "gitCommitMessageEditor.autoFillSignedOffBy": false,
+  "gitCommitMessageEditor.autoFillSignedOffBy": true,
   "gitCommitMessageEditor.autoGitmoji": false,
   "gitCommitMessageEditor.scopes": [
     "templates",
@@ -14,5 +14,7 @@
   ],
   "gitCommitMessageEditor.types": [],
   // "editor.rulers": [50, 72],
-  "files.trimTrailingWhitespace": true
+  "files.trimTrailingWhitespace": true,
+  "gitCommitMessageEditor.scmTitleCommand": "open",
+  "gitCommitMessageEditor.defaultEditorMode": "form"
 }

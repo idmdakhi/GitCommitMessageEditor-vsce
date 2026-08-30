@@ -97,6 +97,10 @@
         );
         break;
 
+      case "openSettings":
+        vscode.commands.executeCommand("gitCommitMessageEditor.openSettings");
+        break;
+
       default:
         break;
     }
@@ -104,6 +108,7 @@
 
   function initializeState(msg) {
     config = msg.config || null;
+    const defaultEditorMode = msg.defaultEditorMode || "form";
 
     activeConfigName = msg.activeConfigName || config?.name || "";
 
@@ -134,11 +139,16 @@
         typeof msg.draft.freeformText === "string"
           ? msg.draft.freeformText
           : "";
+      if (!msg.draft.editorMode) {
+        editorMode = defaultEditorMode === "freeform" ? "freeform" : "form";
+      }
     } else {
       values = {};
       conditionalEnabled = {};
       autoGitmoji = settings.autoGitmoji;
       editorMode = "form";
+      freeformText = "";
+      editorMode = defaultEditorMode === "freeform" ? "freeform" : "form";
       freeformText = "";
     }
 
@@ -578,6 +588,70 @@
     return output.join("\n");
   }
 
+  // ===== Auto-format Body =====
+  function formatBody() {
+    const token = findToken("body");
+    if (!token) {
+      showAiStatus("No 'body' field found in the current template.", true);
+      return;
+    }
+
+    const raw = fieldValue("body");
+    if (!raw.trim()) {
+      showAiStatus("Body is empty. Nothing to format.", true);
+      return;
+    }
+
+    const maxLen = settings.maxLineLength || 100;
+
+    // پاراگراف‌ها را بر اساس خطوط خالی جدا می‌کنیم
+    const paragraphs = raw.split(/\n\s*\n/).filter((p) => p.trim().length > 0);
+
+    const formattedParagraphs = paragraphs.map((p) => {
+      const words = p.split(/\s+/).filter((w) => w.length > 0);
+      const lines = [];
+      let currentLine = [];
+      let currentLength = 0;
+
+      for (const word of words) {
+        if (word.length > maxLen) {
+          if (currentLine.length > 0) {
+            lines.push(currentLine.join(" "));
+            currentLine = [];
+            currentLength = 0;
+          }
+          lines.push(word);
+          continue;
+        }
+
+        const space = currentLine.length > 0 ? 1 : 0;
+        if (currentLength + space + word.length <= maxLen) {
+          currentLine.push(word);
+          currentLength += space + word.length;
+        } else {
+          lines.push(currentLine.join(" "));
+          currentLine = [word];
+          currentLength = word.length;
+        }
+      }
+      if (currentLine.length > 0) {
+        lines.push(currentLine.join(" "));
+      }
+      return lines.join("\n");
+    });
+
+    const newBody = formattedParagraphs.join("\n\n");
+
+    values.body = newBody;
+    if (isCollapsible(token)) {
+      conditionalEnabled.body = true;
+    }
+
+    saveDraft();
+    render();
+    showAiStatus("Body formatted successfully.", false);
+  }
+
   // یک پیام آزاد را برای درج نهایی آماده می‌کند: خطوط خالی ابتدای پیام
   // (که هرگز بخشی از subject نیستند) و فاصله‌ی خالی انتهای پیام حذف
   // می‌شوند؛ خطوط خالی داخل پیام (مثلاً بین پاراگراف‌های body) دست‌نخورده
@@ -969,7 +1043,7 @@
         cls: "secondary",
       },
       {
-        id: "btn-git-editor",
+        id: "btn-giteditor",
         label: "📝 Git Editor",
       },
     ];
@@ -980,14 +1054,6 @@
         label: "✨ AI Draft",
       },
       {
-        id: "btn-config",
-        label: "⚙ Template",
-      },
-      {
-        id: "btn-git-template",
-        label: "📌 Git Template",
-      },
-      {
         id: "btn-amend",
         label: "🔄 Amend Last",
       },
@@ -996,9 +1062,18 @@
         label: "↩️ Undo Insert",
       },
       {
-        id: "btn-project-config",
+        id: "btn-gittemplate",
+        label: "📌 Git Template",
+      },
+      {
+        id: "btn-config",
+        label: "⚙ Template",
+      },
+      {
+        id: "btn-projectconfig",
         label: "📁 Repo Config",
       },
+      { id: "btn-settings", label: "⚙ Settings" },
     ];
 
     return `
@@ -1743,6 +1818,22 @@
       `;
     }
 
+    let extraButtons = "";
+    if (token.name === "body") {
+      extraButtons = `
+      <div class="field-actions" style="display: flex; justify-content: flex-end; margin-top: 4px;">
+        <button
+          class="issue-cell-git-btn"
+          id="btn-format-body-${escapeAttr(token.name)}"
+          type="button"
+          title="Auto-format body text (wrap lines based on maxLineLength)"
+        >
+          ✏️ Format
+        </button>
+      </div>
+    `;
+    }
+
     return `
       <div class="field">
         <div class="field-head">
@@ -1761,6 +1852,9 @@
         ${renderTokenFreqChips(token)}
 
         ${renderInputControl(token)}
+
+        ${extraButtons}
+        <div class="validation-msg"></div>
 
         ${renderScopeSaveButton(token)}
       </div>
@@ -2060,7 +2154,6 @@
 
   function bindField(token) {
     const element = document.getElementById(`f-${token.name}`);
-
     if (!element) return;
 
     if (token.type === "boolean") {
@@ -2133,6 +2226,18 @@
           }
         });
       });
+
+    if (token.name === "body") {
+      const formatBtn = document.getElementById(
+        `btn-format-body-${token.name}`,
+      );
+      if (formatBtn) {
+        formatBtn.addEventListener("click", (e) => {
+          e.stopPropagation(); // جلوگیری از انتشار رویداد
+          formatBody();
+        });
+      }
+    }
 
     const addButton = document.getElementById(`scope-add-${token.name}`);
 
@@ -2318,7 +2423,7 @@
       });
     });
 
-    bindClick("btn-git-editor", () => {
+    bindClick("btn-giteditor", () => {
       vscode.postMessage({
         type: "openAsGitEditor",
       });
@@ -2344,14 +2449,14 @@
       });
     });
 
-    bindClick("btn-git-template", () => {
+    bindClick("btn-gittemplate", () => {
       vscode.postMessage({
         type: "writeGitTemplate",
         message: buildMessage(),
       });
     });
 
-    bindClick("btn-project-config", () => {
+    bindClick("btn-projectconfig", () => {
       vscode.postMessage({
         type: "createProjectConfig",
       });
@@ -2362,6 +2467,10 @@
         type: "amendLast",
         message: buildMessage(),
       });
+    });
+
+    bindClick("btn-settings", () => {
+      vscode.postMessage({ type: "openSettings" });
     });
 
     bindClick("btn-undo", () => {

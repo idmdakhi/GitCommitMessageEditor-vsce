@@ -245,6 +245,10 @@ export class CommitEditorPanel {
         );
         break;
 
+      case "openSettings":
+        vscode.commands.executeCommand("gitCommitMessageEditor.openSettings");
+        break;
+
       default:
         break;
     }
@@ -290,6 +294,10 @@ export class CommitEditorPanel {
         ...(projectConfig?.data.scopes || []),
       ]),
     );
+    const defaultEditorMode = this.cfg().get<string>(
+      "defaultEditorMode",
+      "form",
+    );
 
     this.panel.webview.postMessage({
       type: "init",
@@ -320,6 +328,7 @@ export class CommitEditorPanel {
         currentIndex,
         currentInfo,
       },
+      defaultEditorMode,
     });
 
     await this.sendAutoSuggestions(projectConfig?.data);
