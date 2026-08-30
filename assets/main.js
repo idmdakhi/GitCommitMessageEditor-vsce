@@ -16,6 +16,12 @@
   let configSource = "";
   let hasProjectConfig = false;
 
+  // ===== Free‑form tab (Phase 2 todo: dedicated tab with a large textarea) =====
+  // "form"      — the structured, token-based form (existing behaviour)
+  // "freeform"  — a single large textarea; buildMessage() returns this text verbatim
+  let editorMode = "form";
+  let freeformText = "";
+
   // If enabled, selecting any Type will automatically set the corresponding emoji in Gitmoji (default: enabled)
   let autoGitmoji = true;
 
@@ -123,10 +129,17 @@
         typeof msg.draft.autoGitmoji === "boolean"
           ? msg.draft.autoGitmoji
           : true;
+      editorMode = msg.draft.editorMode === "freeform" ? "freeform" : "form";
+      freeformText =
+        typeof msg.draft.freeformText === "string"
+          ? msg.draft.freeformText
+          : "";
     } else {
       values = {};
       conditionalEnabled = {};
       autoGitmoji = settings.autoGitmoji;
+      editorMode = "form";
+      freeformText = "";
     }
 
     updateRepoState(msg.repoInfo || {});
@@ -226,6 +239,8 @@
         values,
         conditionalEnabled,
         autoGitmoji,
+        editorMode,
+        freeformText,
       },
     });
   }
@@ -338,6 +353,16 @@
   }
 
   function loadRawIntoSubjectBody(raw) {
+    // اگر تب Free‑form فعال است، متن خام مستقیماً در همان Textarea قرار
+    // می‌گیرد؛ تجزیه به فیلدهای فرم بی‌فایده است چون فرم در حال حاضر نمایش
+    // داده نمی‌شود.
+    if (editorMode === "freeform") {
+      freeformText = String(raw || "");
+      saveDraft();
+      render();
+      return;
+    }
+
     if (!findToken("subject")) return;
 
     const lines = String(raw || "").split("\n");
@@ -509,6 +534,10 @@
   }
 
   function buildMessage() {
+    if (editorMode === "freeform") {
+      return trimStrayBlankLines(freeformText);
+    }
+
     if (!config?.template) {
       return "";
     }
@@ -549,9 +578,37 @@
     return output.join("\n");
   }
 
+  // یک پیام آزاد را برای درج نهایی آماده می‌کند: خطوط خالی ابتدای پیام
+  // (که هرگز بخشی از subject نیستند) و فاصله‌ی خالی انتهای پیام حذف
+  // می‌شوند؛ خطوط خالی داخل پیام (مثلاً بین پاراگراف‌های body) دست‌نخورده
+  // باقی می‌مانند چون کاربر آگاهانه آن‌ها را نوشته است.
+  function trimStrayBlankLines(text) {
+    const lines = String(text || "").split("\n");
+
+    while (lines.length && lines[0].trim() === "") {
+      lines.shift();
+    }
+
+    while (lines.length && lines[lines.length - 1].trim() === "") {
+      lines.pop();
+    }
+
+    if (lines.length) {
+      // Leading spaces/tabs on the subject line itself (as opposed to a
+      // blank line before it) are almost certainly accidental.
+      lines[0] = lines[0].replace(/^[ \t]+/, "");
+    }
+
+    return lines.join("\n");
+  }
+
   // Validation
 
   function computeWarnings() {
+    if (editorMode === "freeform") {
+      return computeFreeformWarnings();
+    }
+
     if (!config?.tokens) return [];
 
     const warnings = [];
@@ -626,6 +683,78 @@
           });
         }
       }
+    }
+
+    return warnings;
+  }
+
+  // همان قراردادهای Git 50/72 که برای فیلد subject در حالت فرم چک می‌شوند
+  // (طول، بدون نقطه‌ی پایانی، بدون حرف بزرگ ابتدایی، حالت امری) روی خط
+  // اول پیام آزاد هم اعمال می‌شوند؛ به‌علاوه یک هشدار برای طول خطوط body و
+  // فاصله‌ی خالی میان subject و body.
+  function computeFreeformWarnings() {
+    const text = freeformText || "";
+
+    if (!text.trim()) {
+      return [
+        {
+          field: "freeform-message",
+          message: "Commit message is empty.",
+        },
+      ];
+    }
+
+    const warnings = [];
+    const lines = text.split("\n");
+    const subject = lines[0] || "";
+    const maxSubject = settings.maxSubjectLength || 72;
+
+    if (subject.length > maxSubject) {
+      warnings.push({
+        field: "freeform-message",
+        message: `First line is longer than ${maxSubject} characters.`,
+      });
+    }
+
+    if (/[.]\s*$/.test(subject.trim())) {
+      warnings.push({
+        field: "freeform-message",
+        message: "First line should not end with a period.",
+      });
+    }
+
+    if (subject.trim() && /^[A-Z]/.test(subject.trim())) {
+      warnings.push({
+        field: "freeform-message",
+        message: "First line should not start with a capital letter.",
+      });
+    }
+
+    if (
+      /^(added|fixed|changed|removed|updated|created|deleted)\b/i.test(
+        subject.trim(),
+      )
+    ) {
+      warnings.push({
+        field: "freeform-message",
+        message: "Use imperative mood (add, not added).",
+      });
+    }
+
+    if (lines.length > 1 && lines[1].trim() !== "") {
+      warnings.push({
+        field: "freeform-message",
+        message: "Leave a blank line between the first line and the body.",
+      });
+    }
+
+    const maxLine = settings.maxLineLength || 100;
+
+    if (lines.slice(2).some((line) => line.length > maxLine)) {
+      warnings.push({
+        field: "freeform-message",
+        message: `One or more lines in the body exceed ${maxLine} characters.`,
+      });
     }
 
     return warnings;
@@ -918,6 +1047,68 @@
     `;
   }
 
+  // Form / Free-form tab switcher — sits above #form so only the input
+  // side changes; the live preview on the right works the same either way
+  // since buildMessage() already branches on editorMode.
+  function renderModeTabs() {
+    return `
+      <div
+        class="editor-mode-tabs"
+        id="editor-mode-tabs"
+        role="tablist"
+        aria-label="Message editor mode"
+      >
+        <button
+          type="button"
+          class="mode-tab${editorMode === "form" ? " active" : ""}"
+          data-mode="form"
+          role="tab"
+          aria-selected="${editorMode === "form"}"
+        >
+          🧩 Form
+        </button>
+
+        <button
+          type="button"
+          class="mode-tab${editorMode === "freeform" ? " active" : ""}"
+          data-mode="freeform"
+          role="tab"
+          aria-selected="${editorMode === "freeform"}"
+        >
+          📝 Free-form
+        </button>
+      </div>
+    `;
+  }
+
+  function bindModeTabs() {
+    document.querySelectorAll(".mode-tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const nextMode = tab.dataset.mode;
+
+        if (!nextMode || nextMode === editorMode) return;
+
+        // اولین بار که کاربر به تب Free‑form می‌رود، اگر متن آزاد هنوز
+        // خالی است، پیامی که تا این لحظه از فرم ساخته شده به‌عنوان نقطه‌ی
+        // شروع در Textarea قرار می‌گیرد (به‌جای شروع از صفحه‌ی کاملاً
+        // خالی) — این کار قبل از عوض‌شدن editorMode انجام می‌شود چون
+        // buildMessage() هنوز در حالت "form" پیام را می‌سازد.
+        if (nextMode === "freeform" && !freeformText.trim()) {
+          const assembled = buildMessage();
+
+          if (assembled.trim()) {
+            freeformText = assembled;
+          }
+        }
+
+        editorMode = nextMode;
+
+        saveDraft();
+        render();
+      });
+    });
+  }
+
   function showSpinner(buttonId) {
     const button = document.getElementById(buttonId);
 
@@ -987,19 +1178,14 @@
             ></span>
           </div>
 
-          ${
-            warnings.length
-              ? `
-                <div
-                  class="warnings"
-                  id="warnings-line"
-                >
-                  ⚠ ${warnings.length}
-                  warning${warnings.length > 1 ? "s" : ""} — click to jump
-                </div>
-              `
-              : ""
-          }
+          <div
+            class="warnings"
+            id="warnings-line"
+            style="${warnings.length ? "" : "display:none;"}"
+          >
+            ⚠ <span id="warnings-count">${warnings.length}</span>
+            warning<span id="warnings-plural">${warnings.length > 1 ? "s" : ""}</span> — click to jump
+          </div>
         </div>
 
         <div class="header-block">
@@ -1039,6 +1225,7 @@
 
         <div class="workspace">
           <div class="workspace-form">
+            ${renderModeTabs()}
             <div id="form"></div>
           </div>
 
@@ -1100,6 +1287,7 @@
       renderRecentCommits();
     }
 
+    bindModeTabs();
     bindToolbar();
     bindCollapsibles();
 
@@ -1125,44 +1313,61 @@
     let filled = 0;
     let totalVisible = 0;
 
-    row.innerHTML = config.tokens
-      .map((token) => {
-        const enabled = isFieldEnabled(token);
+    if (editorMode === "freeform") {
+      const hasValue = !!freeformText.trim();
 
-        if (!token.required && !enabled && token.type !== "boolean") {
-          return "";
-        }
+      row.innerHTML = `
+        <span
+          class="chip ${hasValue ? "ok" : "warn"}"
+          data-field="freeform-message"
+        >
+          Message
+        </span>
+      `;
 
-        totalVisible++;
+      progressElement.textContent = hasValue
+        ? "Free-form message"
+        : "Free-form message — empty";
+    } else {
+      row.innerHTML = config.tokens
+        .map((token) => {
+          const enabled = isFieldEnabled(token);
 
-        const hasValue =
-          token.type === "boolean"
-            ? !!values[token.name]
-            : enabled && fieldValue(token.name).trim() !== "";
+          if (!token.required && !enabled && token.type !== "boolean") {
+            return "";
+          }
 
-        let className = "empty";
+          totalVisible++;
 
-        if (hasValue) {
-          className = "ok";
-          filled++;
-        } else if (token.required) {
-          className = "warn";
-        }
+          const hasValue =
+            token.type === "boolean"
+              ? !!values[token.name]
+              : enabled && fieldValue(token.name).trim() !== "";
 
-        return `
-          <span
-            class="chip ${className}"
-            data-field="${escapeAttr(token.name)}"
-          >
-            ${escapeHtml(token.label)}
-          </span>
-        `;
-      })
-      .join("");
+          let className = "empty";
 
-    progressElement.textContent = `${filled} of ${
-      totalVisible || config.tokens.length
-    } sections`;
+          if (hasValue) {
+            className = "ok";
+            filled++;
+          } else if (token.required) {
+            className = "warn";
+          }
+
+          return `
+            <span
+              class="chip ${className}"
+              data-field="${escapeAttr(token.name)}"
+            >
+              ${escapeHtml(token.label)}
+            </span>
+          `;
+        })
+        .join("");
+
+      progressElement.textContent = `${filled} of ${
+        totalVisible || config.tokens.length
+      } sections`;
+    }
 
     row.querySelectorAll(".chip").forEach((chip) => {
       chip.addEventListener("click", () => {
@@ -1189,39 +1394,135 @@
 
     const warningLine = document.getElementById("warnings-line");
 
-    if (warningLine && warnings.length) {
-      warningLine.title = warnings.map((warning) => warning.message).join("\n");
+    if (warningLine) {
+      if (warnings.length) {
+        warningLine.style.display = "";
+        warningLine.title = warnings
+          .map((warning) => warning.message)
+          .join("\n");
 
-      warningLine.addEventListener("click", () => {
-        const firstWarning = warnings[0];
+        const countEl = document.getElementById("warnings-count");
+        const pluralEl = document.getElementById("warnings-plural");
 
-        if (!firstWarning) return;
+        if (countEl) countEl.textContent = String(warnings.length);
+        if (pluralEl) pluralEl.textContent = warnings.length > 1 ? "s" : "";
 
-        const token = findToken(firstWarning.field);
+        // از onclick= (به‌جای addEventListener) استفاده می‌شود چون این
+        // عنصر برخلاف چیپ‌ها در هر keystroke دوباره ساخته نمی‌شود؛
+        // addEventListener هر بار یک لیسنر جدید اضافه می‌کرد (نشتی حافظه
+        // و فراخوانی چندباره‌ی هندلر با هر کلیک).
+        warningLine.onclick = () => {
+          const firstWarning = warnings[0];
 
-        if (token && isCollapsible(token) && !conditionalEnabled[token.name]) {
-          conditionalEnabled[token.name] = true;
+          if (!firstWarning) return;
 
-          saveDraft();
-          render();
+          if (editorMode === "freeform") {
+            document.getElementById(`f-${firstWarning.field}`)?.focus();
+            return;
+          }
 
-          requestAnimationFrame(() => {
-            document.getElementById(`f-${token.name}`)?.focus();
-          });
+          const token = findToken(firstWarning.field);
 
-          return;
-        }
+          if (
+            token &&
+            isCollapsible(token) &&
+            !conditionalEnabled[token.name]
+          ) {
+            conditionalEnabled[token.name] = true;
 
-        document.getElementById(`f-${firstWarning.field}`)?.focus();
-      });
+            saveDraft();
+            render();
+
+            requestAnimationFrame(() => {
+              document.getElementById(`f-${token.name}`)?.focus();
+            });
+
+            return;
+          }
+
+          document.getElementById(`f-${firstWarning.field}`)?.focus();
+        };
+      } else {
+        warningLine.style.display = "none";
+        warningLine.onclick = null;
+      }
     }
   }
 
   // Form
 
+  // Free-form tab: one large textarea, no fields, no template — the raw
+  // text becomes the commit message verbatim (see buildMessage()).
+  function freeformCounterText() {
+    const lines = freeformText ? freeformText.split("\n") : [];
+    const lineCount = freeformText ? lines.length : 0;
+    const charCount = freeformText.length;
+
+    return `${lineCount} line${lineCount === 1 ? "" : "s"} · ${charCount} char${
+      charCount === 1 ? "" : "s"
+    }`;
+  }
+
+  function renderFreeformForm(formElement) {
+    formElement.innerHTML = `
+      <div class="field freeform-field">
+        <div class="field-head">
+          <label for="f-freeform-message">
+            Commit message
+          </label>
+        </div>
+
+        <div class="desc">
+          Write the full commit message exactly as it should be committed —
+          no fields, no template, just text. The first line is the subject;
+          leave a blank line before the body.
+        </div>
+
+        <textarea
+          id="f-freeform-message"
+          class="freeform-textarea monospace"
+          placeholder="feat(scope): subject&#10;&#10;Body of the commit message..."
+          spellcheck="true"
+        >${escapeHtml(freeformText)}</textarea>
+
+        <div
+          class="counter"
+          id="freeform-counter"
+        >
+          ${freeformCounterText()}
+        </div>
+      </div>
+    `;
+
+    bindFreeformField();
+  }
+
+  function bindFreeformField() {
+    const element = document.getElementById("f-freeform-message");
+    if (!element) return;
+
+    element.addEventListener("input", () => {
+      freeformText = element.value;
+
+      saveDraft();
+      updatePreviewAndChips();
+
+      const counter = document.getElementById("freeform-counter");
+      if (counter) {
+        counter.textContent = freeformCounterText();
+      }
+    });
+  }
+
   function renderForm() {
     const formElement = document.getElementById("form");
     if (!formElement) return;
+
+    if (editorMode === "freeform") {
+      renderFreeformForm(formElement);
+      return;
+    }
+
     const hasTypeToken = config.tokens.some((t) => t.name === "type");
 
     const core = [];
@@ -1992,8 +2293,12 @@
     });
 
     bindClick("btn-reset", () => {
-      values = {};
-      conditionalEnabled = {};
+      if (editorMode === "freeform") {
+        freeformText = "";
+      } else {
+        values = {};
+        conditionalEnabled = {};
+      }
 
       saveDraft();
       render();

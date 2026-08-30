@@ -2,8 +2,10 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import type { ConfigManager as ConfigManagerType } from "../../src/config/configManager";
+import ConfigManager from "../../src/config/configManager";
 import { PortableConfig } from "../../src/config/types";
 import type * as VscodeMockModule from "../__mocks__/vscode";
+import * as vscodeMock from "../__mocks__/vscode";
 
 // `configManager.ts` keeps a module-level `bundledTemplatesCache` that
 // persists for the lifetime of the module. Since each test below uses a
@@ -12,14 +14,6 @@ import type * as VscodeMockModule from "../__mocks__/vscode";
 // `vscode` mock and `configManager` are freshly required together and
 // the cache never leaks across tests.
 let ConfigManager: typeof ConfigManagerType;
-let vscodeMock: typeof VscodeMockModule;
-
-function requireFreshModules() {
-  jest.isolateModules(() => {
-    vscodeMock = require("../__mocks__/vscode");
-    ConfigManager = require("../../src/config/configManager").ConfigManager;
-  });
-}
 
 function writeTemplate(dir: string, fileName: string, config: PortableConfig) {
   fs.mkdirSync(dir, { recursive: true });
@@ -48,8 +42,6 @@ describe("ConfigManager", () => {
   let manager: ConfigManagerType;
 
   beforeEach(() => {
-    requireFreshModules();
-
     extensionPath = fs.mkdtempSync(path.join(os.tmpdir(), "gitcme-ext-"));
     cwd = fs.mkdtempSync(path.join(os.tmpdir(), "gitcme-repo-"));
     context = vscodeMock.makeMockExtensionContext(extensionPath);
