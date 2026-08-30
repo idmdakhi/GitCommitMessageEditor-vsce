@@ -243,3 +243,51 @@ export async function getRepoInfo(
   } catch {}
   return { name, branch, stagedCount };
 }
+
+/**
+ * استخراج Type و Scope های پرتکرار از ۵۰ کامیت اخیر
+ */
+export async function getFrequentValues(
+  cwd: string,
+  limit: number = 50,
+): Promise<{ types: string[]; scopes: string[] }> {
+  try {
+    const sep = "\u0001";
+    const rec = "\u0002";
+    const raw = await execGit(
+      ["log", `-n${limit}`, `--pretty=format:%s${rec}`],
+      cwd,
+    );
+    const messages = raw.split(rec).filter(Boolean);
+    const typeCounts: Record<string, number> = {};
+    const scopeCounts: Record<string, number> = {};
+
+    for (const msg of messages) {
+      // استخراج type و scope از Conventional Commits
+      const match = msg.match(/^([a-z]+)(?:\(([^)]+)\))?:/i);
+      if (match) {
+        const type = match[1].toLowerCase();
+        typeCounts[type] = (typeCounts[type] || 0) + 1;
+        if (match[2]) {
+          const scope = match[2].toLowerCase();
+          scopeCounts[scope] = (scopeCounts[scope] || 0) + 1;
+        }
+      }
+    }
+
+    // مرتب‌سازی و انتخاب ۵ مورد پرتکرار
+    const sortedTypes = Object.entries(typeCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([type]) => type);
+
+    const sortedScopes = Object.entries(scopeCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([scope]) => scope);
+
+    return { types: sortedTypes, scopes: sortedScopes };
+  } catch {
+    return { types: [], scopes: [] };
+  }
+}

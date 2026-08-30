@@ -97,9 +97,9 @@ Goal: Combine the best features of all three into a single, modern extension.
 - [x] `autoFillSignedOffBy` (auto‑fill from `git config user.name/email`)
 - [x] `detectIssueFromBranch`
 - [x] `maxSubjectLength`, `maxLineLength`
-- [ ] `rememberFrequentValues`
+- [x] `rememberFrequentValues`
 - [x] `showRecentCommits` (+ `maxItems`)
-- [ ] `emojiPrefix` (enable Gitmoji by default)
+- [x] `emojiPrefix` (enable Gitmoji by default)
 - [x] `editor.keepAfterSave` (keep or close the tab after saving)
 - [ ] `intelliSense.completion.logScopes.enabled`
 - [ ] `intelliSense.completion.issues.pageSize`

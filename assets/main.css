@@ -1272,3 +1272,10 @@ button.secondary {
   color: var(--cme-accent);
   transform: none;
 }
+
+.freq-chips .freq-label {
+  font-size: 9.5px;
+  color: var(--cme-faint);
+  margin-right: 6px;
+  font-weight: 500;
+}

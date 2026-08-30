@@ -109,9 +109,7 @@
   function initializeState(msg) {
     config = msg.config || null;
     const defaultEditorMode = msg.defaultEditorMode || "form";
-
     activeConfigName = msg.activeConfigName || config?.name || "";
-
     configSource = msg.configSource || "";
     hasProjectConfig = !!msg.hasProjectConfig;
 
@@ -123,8 +121,25 @@
         msg.settings?.autoGitmoji !== undefined
           ? msg.settings.autoGitmoji
           : true,
+      rememberFrequentTypes:
+        msg.settings?.rememberFrequentTypes !== undefined
+          ? msg.settings.rememberFrequentTypes
+          : true,
+      rememberFrequentScopes:
+        msg.settings?.rememberFrequentScopes !== undefined
+          ? msg.settings.rememberFrequentScopes
+          : true,
+      frequentTypes: Array.isArray(msg.settings?.frequentTypes)
+        ? msg.settings.frequentTypes
+        : [],
+      frequentScopes: Array.isArray(msg.settings?.frequentScopes)
+        ? msg.settings.frequentScopes
+        : [],
     };
 
+    if (msg.settings?.emojiPrefix) {
+      settings.autoGitmoji = true;
+    }
     recentCommits = Array.isArray(msg.recentCommits) ? msg.recentCommits : [];
 
     if (msg.draft) {
@@ -1818,47 +1833,110 @@
       `;
     }
 
+    let frequentChipsType = "";
+    if (
+      token.name === "type" &&
+      settings.rememberFrequentTypes &&
+      settings.frequentTypes?.length
+    ) {
+      frequentChipsType = `
+      <div class="freq-chips" style="margin-top: 6px; margin-bottom: 4px;">
+        <span style="font-size: 9.5px; color: var(--cme-faint); margin-right: 6px; font-weight: 500;">
+          Frequent:
+        </span>
+        ${settings.frequentTypes
+          .map(
+            (type) => `
+            <span class="freq-chip">
+              <span class="freq-chip-label" data-set-field="${escapeAttr(token.name)}" data-set-value="${escapeAttr(type)}" data-toggle="true">
+                ${escapeHtml(type)}
+              </span>
+            </span>
+          `,
+          )
+          .join("")}
+      </div>
+    `;
+    }
+
+    // ===== چیپ‌های Frequent برای Scope (جدید) =====
+    let frequentChipsScope = "";
+    if (
+      token.name === "scope" &&
+      settings.rememberFrequentScopes &&
+      settings.frequentScopes?.length
+    ) {
+      const existingScopes = new Set(settings.scopes || []);
+      const frequentScopes = settings.frequentScopes.filter(
+        (s) => !existingScopes.has(s),
+      );
+      if (frequentScopes.length > 0) {
+        frequentChipsScope = `
+        <div class="freq-chips" style="margin-top: 6px; margin-bottom: 4px;">
+          <span style="font-size: 9.5px; color: var(--cme-faint); margin-right: 6px; font-weight: 500;">
+            Frequent:
+          </span>
+          ${frequentScopes
+            .slice(0, 5)
+            .map(
+              (scope) => `
+              <span class="freq-chip">
+                <span class="freq-chip-label" data-set-field="scope" data-set-value="${escapeAttr(scope)}">
+                  ${escapeHtml(scope)}
+                </span>
+              </span>
+            `,
+            )
+            .join("")}
+        </div>
+      `;
+      }
+    }
+
+    // ===== دکمه‌ی Format برای Body =====
     let extraButtons = "";
     if (token.name === "body") {
       extraButtons = `
       <div class="field-actions" style="display: flex; justify-content: flex-end; margin-top: 4px;">
-        <button
-          class="issue-cell-git-btn"
-          id="btn-format-body-${escapeAttr(token.name)}"
-          type="button"
-          title="Auto-format body text (wrap lines based on maxLineLength)"
-        >
+        <button class="issue-cell-git-btn" id="btn-format-body-${escapeAttr(token.name)}" type="button" title="Auto-format body text (wrap lines based on maxLineLength)">
           ✏️ Format
         </button>
       </div>
     `;
     }
 
-    return `
-      <div class="field">
-        <div class="field-head">
-          <label
-            for="f-${escapeAttr(token.name)}"
-          >
-            ${escapeHtml(token.label)}
-            ${requiredMark}
-          </label>
-
-          ${token.name === "type" ? renderAutoGitmojiToggle() : ""}
-        </div>
-
-        ${description}
-
-        ${renderTokenFreqChips(token)}
-
-        ${renderInputControl(token)}
-
+    // ===== ساختار ویژه برای فیلد Body (textarea + دکمه در کنار هم) =====
+    let inputControl = renderInputControl(token);
+    let fieldWrapper = "";
+    if (token.name === "body") {
+      fieldWrapper = `
+      <div style="display: flex; gap: 8px; align-items: stretch;">
+        ${inputControl}
         ${extraButtons}
-        <div class="validation-msg"></div>
-
-        ${renderScopeSaveButton(token)}
       </div>
     `;
+    } else {
+      fieldWrapper = inputControl + extraButtons;
+    }
+
+    // ===== خروجی نهایی =====
+    return `
+    <div class="field">
+      <div class="field-head">
+        <label for="f-${escapeAttr(token.name)}">
+          ${escapeHtml(token.label)}
+          ${requiredMark}
+        </label>
+        ${token.name === "type" ? renderAutoGitmojiToggle() : ""}
+      </div>
+      ${description}
+      ${token.name === "type" ? frequentChipsType : ""}
+      ${token.name === "scope" ? frequentChipsScope : ""}
+      ${renderTokenFreqChips(token)}
+      ${fieldWrapper}
+      <div class="validation-msg"></div>
+    </div>
+  `;
   }
 
   function renderAutoGitmojiToggle() {
@@ -1895,43 +1973,33 @@
   }
 
   function renderTokenFreqChips(token) {
+    const chips = [];
+
+    // فقط چیپ‌های ذخیره‌شده (Saved Scopes) – با قابلیت حذف
     if (
       token.name === "scope" &&
       Array.isArray(settings.scopes) &&
       settings.scopes.length
     ) {
-      return `
-        <div class="freq-chips">
-          ${settings.scopes
-            .map(
-              (scope) => `
-                <span class="freq-chip">
-                  <span
-                    class="freq-chip-label"
-                    data-set-field="scope"
-                    data-set-value="${escapeAttr(scope)}"
-                  >
-                    ${escapeHtml(scope)}
-                  </span>
-
-                  <button
-                    type="button"
-                    class="freq-chip-remove"
-                    data-remove-scope="${escapeAttr(scope)}"
-                    title="حذف اسکوپ ذخیره‌شده «${escapeAttr(scope)}»"
-                    aria-label="حذف اسکوپ ذخیره‌شده ${escapeAttr(scope)}"
-                  >
-                    ✕
-                  </button>
-                </span>
-              `,
-            )
-            .join("")}
-        </div>
-      `;
+      for (const scope of settings.scopes) {
+        chips.push(`
+        <span class="freq-chip">
+          <span class="freq-chip-label" data-set-field="scope" data-set-value="${escapeAttr(scope)}">
+            ${escapeHtml(scope)}
+          </span>
+          <button type="button" class="freq-chip-remove" data-remove-scope="${escapeAttr(scope)}" title="حذف اسکوپ ذخیره‌شده «${escapeAttr(scope)}»" aria-label="حذف اسکوپ ذخیره‌شده ${escapeAttr(scope)}">
+            ✕
+          </button>
+        </span>
+      `);
+      }
     }
 
-    return "";
+    // ===== بخش Frequent Scope حذف شد (اکنون در renderField قرار دارد) =====
+
+    return chips.length
+      ? `<div class="freq-chips">${chips.join("")}</div>`
+      : "";
   }
 
   function renderInputControl(token) {

@@ -1,17 +1,7 @@
 {
   "gitCommitMessageEditor.autoFillSignedOffBy": true,
   "gitCommitMessageEditor.autoGitmoji": false,
-  "gitCommitMessageEditor.scopes": [
-    "templates",
-    "config",
-    "panels",
-    "utils",
-    "schemas",
-    "assets",
-    "docs",
-    "wiki",
-    "setting"
-  ],
+  "gitCommitMessageEditor.scopes": [],
   "gitCommitMessageEditor.types": [],
   // "editor.rulers": [50, 72],
   "files.trimTrailingWhitespace": true,

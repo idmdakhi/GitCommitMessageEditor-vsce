@@ -19,6 +19,7 @@ import {
   GitApiRepository,
   execGit,
   getStagedFiles,
+  getFrequentValues,
 } from "../utils/git";
 
 const DRAFT_STATE_KEY = "gitCommitMessageEditor.draft";
@@ -265,6 +266,19 @@ export class CommitEditorPanel {
           )
         : [];
 
+    const rememberFrequentTypes = this.cfg().get<boolean>(
+      "rememberFrequentTypes",
+      true,
+    );
+    const rememberFrequentScopes = this.cfg().get<boolean>(
+      "rememberFrequentScopes",
+      true,
+    );
+    const frequentValues =
+      cwd && (rememberFrequentTypes || rememberFrequentScopes)
+        ? await getFrequentValues(cwd)
+        : { types: [], scopes: [] };
+
     const { repos, currentIndex } = await this.getRepoList();
     const currentInfo = await this.getCurrentRepoInfo();
     // Load project defaults from repo (.commit-message-editor.json/.yaml/.yml) if present
@@ -312,10 +326,15 @@ export class CommitEditorPanel {
           this.cfg().get("maxSubjectLength"),
         maxLineLength:
           projectConfig?.data.maxLineLength ?? this.cfg().get("maxLineLength"),
-        rememberFrequentValues: this.cfg().get("rememberFrequentValues"),
+        rememberFrequentValues: this.cfg().get("rememberFrequentValues"), // @depracted
+        rememberFrequentTypes,
+        rememberFrequentScopes,
         emojiPrefix:
-          projectConfig?.data.emojiPrefix ?? this.cfg().get("emojiPrefix"),
-        autoGitmoji: this.cfg().get("autoGitmoji", true),
+          projectConfig?.data.emojiPrefix ??
+          this.cfg().get("emojiPrefix", false),
+        autoGitmoji: this.cfg().get("autoGitmoji", false),
+        frequentTypes: frequentValues.types,
+        frequentScopes: frequentValues.scopes,
       },
       draft,
       recentCommits,
