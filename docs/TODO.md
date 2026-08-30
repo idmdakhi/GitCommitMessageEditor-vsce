@@ -10,7 +10,7 @@ Goal: Combine the best features of all three into a single, modern extension.
 - [x] Integration with Source Control panel (Edit icon on the repo)
 - [x] Command Palette command: «Open Commit Message Editor»
 - [x] Support for multiple open repositories simultaneously + remember the selected repo in `workspaceState`
-- [ ] “VS Code as Git Editor” mode (direct editing of `COMMIT_EDITMSG` without a real file, using VFS)
+- [x] “VS Code as Git Editor” mode (direct editing of `COMMIT_EDITMSG` without a real file, using VFS)
 - [x] Build `.vsix` package and publish to Marketplace
 
 ## Phase 1 — Form for building the message (Conventional Commits base)

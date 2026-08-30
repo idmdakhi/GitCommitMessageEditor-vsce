@@ -18,11 +18,13 @@ function createStatusBar() {
   return item;
 }
 
-function deactivateStatusBar(statusBarItem: vscode.StatusBarItem | undefined) {
-  if (statusBarItem) {
-    statusBarItem.dispose();
-    statusBarItem = undefined;
+function deactivateStatusBar(
+  item: vscode.StatusBarItem | undefined,
+): vscode.StatusBarItem | undefined {
+  if (item) {
+    item.dispose();
   }
+  return undefined;
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -59,7 +61,7 @@ export function activate(context: vscode.ExtensionContext) {
           statusBarItem = createStatusBar();
           context.subscriptions.push(statusBarItem);
         } else if (!newValue && statusBarItem) {
-          deactivateStatusBar(statusBarItem);
+          statusBarItem = deactivateStatusBar(statusBarItem);
         }
       }
     }),
@@ -203,5 +205,5 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
-  deactivateStatusBar(statusBarItem);
+  statusBarItem = deactivateStatusBar(statusBarItem);
 }
