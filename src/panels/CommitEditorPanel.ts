@@ -238,6 +238,13 @@ export class CommitEditorPanel {
         });
         break;
       }
+
+      case "openAsGitEditor":
+        vscode.commands.executeCommand(
+          "gitCommitMessageEditor.openAsGitEditor",
+        );
+        break;
+
       default:
         break;
     }

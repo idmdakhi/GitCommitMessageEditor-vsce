@@ -132,6 +132,10 @@
         {
           "label": "wip",
           "description": "Work in progress"
+        },
+        {
+          "label": "initial",
+          "description": ""
         }
       ]
     },

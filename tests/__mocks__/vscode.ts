@@ -1,10 +1,41 @@
-/**
- * Minimal mock of the 'vscode' API surface used by this extension's source
- * files, so the TypeScript sources can be unit-tested with plain Jest
- * outside of a real VS Code host.
- *
- * Only what is actually imported/used across src/** is implemented.
- */
+// __mocks__/vscode.ts
+// Manual mock of the 'vscode' module for unit tests.
+// Wired up via moduleNameMapper in jest.config.js (there's no real
+// 'vscode' package installed in a plain node_modules tree).
+
+export class Disposable {
+  private _callback?: () => void;
+  constructor(callback?: () => void) {
+    this._callback = callback;
+  }
+  dispose = jest.fn(() => {
+    this._callback?.();
+  });
+}
+
+export class EventEmitter<T> {
+  private _listeners: Array<(e: T) => any> = [];
+
+  event = (listener: (e: T) => any): Disposable => {
+    this._listeners.push(listener);
+    return new Disposable(() => {
+      this._listeners = this._listeners.filter((l) => l !== listener);
+    });
+  };
+
+  fire = (data: T): void => {
+    for (const listener of [...this._listeners]) {
+      listener(data);
+    }
+  };
+
+  dispose = jest.fn();
+}
+
+export enum StatusBarAlignment {
+  Left = 1,
+  Right = 2,
+}
 
 export enum ViewColumn {
   Active = -1,
@@ -14,234 +45,110 @@ export enum ViewColumn {
   Three = 3,
 }
 
-export enum StatusBarAlignment {
-  Left = 1,
-  Right = 2,
-}
-
 export enum ConfigurationTarget {
   Global = 1,
   Workspace = 2,
   WorkspaceFolder = 3,
 }
 
-export class Uri {
-  private constructor(public fsPath: string) {}
-  static file(p: string): Uri {
-    return new Uri(p);
-  }
-  static joinPath(base: Uri, ...segments: string[]): Uri {
-    const path = require("path");
-    return new Uri(path.join(base.fsPath, ...segments));
-  }
-  toString() {
-    return this.fsPath;
+export enum FileType {
+  Unknown = 0,
+  File = 1,
+  Directory = 2,
+  SymbolicLink = 64,
+}
+
+export enum FileChangeType {
+  Changed = 1,
+  Created = 2,
+  Deleted = 3,
+}
+
+class FileSystemErrorImpl extends Error {
+  code: string;
+  constructor(message: string, code: string) {
+    super(message);
+    this.code = code;
   }
 }
 
-export class Disposable {
-  constructor(private callOnDispose: () => void) {}
-  dispose() {
-    this.callOnDispose();
-  }
-}
+export const FileSystemError = {
+  FileNotFound: (uri?: any) =>
+    new FileSystemErrorImpl(`FileNotFound: ${uri}`, "FileNotFound"),
+  NoPermissions: (msg?: string) =>
+    new FileSystemErrorImpl(msg || "NoPermissions", "NoPermissions"),
+};
 
-export class CancellationTokenSource {
-  token = {
-    isCancellationRequested: false,
-    onCancellationRequested: () => new Disposable(() => {}),
+export const Uri = {
+  parse: jest.fn((value: string) => makeUri(value)),
+  file: jest.fn((value: string) => makeUri(`file://${value}`)),
+};
+
+function makeUri(value: string) {
+  const [scheme, rest] = value.split(/:(.+)/);
+  return {
+    scheme,
+    path: rest,
+    fsPath: rest,
+    toString: () => value,
   };
-  cancel() {
-    this.token.isCancellationRequested = true;
-  }
-  dispose() {}
 }
 
-export const LanguageModelChatMessage = {
-  User: (content: string) => ({ role: "user", content }),
+// ---- workspace ----
+const configStore: Record<string, any> = {};
+
+const defaultConfigObject = {
+  get: jest.fn((_key: string, defaultValue?: any) => defaultValue),
+  update: jest.fn().mockResolvedValue(undefined),
 };
-
-// ---- mutable state the tests can poke at ----
-export const __mockState = {
-  configuration: new Map<string, any>(),
-  workspaceFolders: undefined as { uri: Uri }[] | undefined,
-  extensions: new Map<string, any>(),
-  informationMessages: [] as string[],
-  warningMessages: [] as string[],
-  errorMessages: [] as string[],
-  saveDialogResult: undefined as Uri | undefined,
-  openDialogResult: undefined as Uri[] | undefined,
-  clipboardText: "",
-  writtenFiles: new Map<string, Buffer>(),
-  lmModels: [] as any[],
-};
-
-export function __resetMockState() {
-  __mockState.configuration = new Map();
-  __mockState.workspaceFolders = undefined;
-  __mockState.extensions = new Map();
-  __mockState.informationMessages = [];
-  __mockState.warningMessages = [];
-  __mockState.errorMessages = [];
-  __mockState.saveDialogResult = undefined;
-  __mockState.openDialogResult = undefined;
-  __mockState.clipboardText = "";
-  __mockState.writtenFiles = new Map();
-  __mockState.lmModels = [];
-}
-
-class MockConfiguration {
-  constructor(private section: string) {}
-  get<T>(key: string, defaultValue?: T): T {
-    const full = `${this.section}.${key}`;
-    return __mockState.configuration.has(full)
-      ? __mockState.configuration.get(full)
-      : (defaultValue as T);
-  }
-  async update(key: string, value: any) {
-    __mockState.configuration.set(`${this.section}.${key}`, value);
-  }
-}
 
 export const workspace = {
-  getConfiguration(section: string) {
-    return new MockConfiguration(section);
-  },
-  get workspaceFolders() {
-    return __mockState.workspaceFolders;
-  },
-  fs: {
-    async writeFile(uri: Uri, content: Uint8Array) {
-      __mockState.writtenFiles.set(uri.fsPath, Buffer.from(content));
-    },
-    async readFile(uri: Uri): Promise<Uint8Array> {
-      const buf = __mockState.writtenFiles.get(uri.fsPath);
-      if (!buf) {
-        throw new Error(`ENOENT: ${uri.fsPath}`);
-      }
-      return buf;
-    },
-  },
-  onDidChangeConfiguration: jest.fn((callback) => {
-    // یک شبیه‌سازی ساده که یک Disposable برگرداند
-    return new Disposable(() => {});
-  }),
+  getConfiguration: jest.fn(() => defaultConfigObject),
+  onDidChangeConfiguration: jest.fn(() => new Disposable()),
+  registerFileSystemProvider: jest.fn(() => new Disposable()),
+  registerTextDocumentContentProvider: jest.fn(() => new Disposable()),
+  openTextDocument: jest.fn((uri: any) =>
+    Promise.resolve({
+      uri,
+      getText: jest.fn(() => ""),
+    }),
+  ),
+  textDocuments: [] as any[],
+  onDidSaveTextDocument: jest.fn(() => new Disposable()),
 };
+
+// ---- window ----
+function makeStatusBarItem() {
+  return {
+    text: "",
+    tooltip: "",
+    command: "",
+    show: jest.fn(),
+    hide: jest.fn(),
+    dispose: jest.fn(),
+  };
+}
 
 export const window = {
-  async showInformationMessage(msg: string, ..._rest: any[]) {
-    __mockState.informationMessages.push(msg);
-    return undefined;
-  },
-  async showWarningMessage(msg: string, ..._rest: any[]) {
-    __mockState.warningMessages.push(msg);
-    return undefined;
-  },
-  async showErrorMessage(msg: string, ..._rest: any[]) {
-    __mockState.errorMessages.push(msg);
-    return undefined;
-  },
-  async showSaveDialog(_opts: any) {
-    return __mockState.saveDialogResult;
-  },
-  async showOpenDialog(_opts: any) {
-    return __mockState.openDialogResult;
-  },
-  createStatusBarItem(_alignment?: StatusBarAlignment, _priority?: number) {
-    return {
-      text: "",
-      tooltip: "",
-      command: "",
-      show() {},
-      hide() {},
-      dispose() {},
-    };
-  },
-  createWebviewPanel(
-    _viewType: string,
-    _title: string,
-    _column: any,
-    _opts: any,
-  ) {
-    return {
-      webview: {
-        html: "",
-        cspSource: "vscode-webview:",
-        asWebviewUri: (u: Uri) => u,
-        postMessage: (_msg: any) => Promise.resolve(true),
-        onDidReceiveMessage: (_cb: any) => new Disposable(() => {}),
-      },
-      reveal: (_col?: any) => {},
-      onDidDispose: (_cb: any) => new Disposable(() => {}),
-      dispose: () => {},
-    };
-  },
+  createStatusBarItem: jest.fn(() => makeStatusBarItem()),
+  showTextDocument: jest.fn(() =>
+    Promise.resolve({
+      document: { uri: { toString: () => "" } },
+    }),
+  ),
+  showInformationMessage: jest.fn(() => Promise.resolve(undefined)),
+  showWarningMessage: jest.fn(() => Promise.resolve(undefined)),
+  showErrorMessage: jest.fn(() => Promise.resolve(undefined)),
+  onDidChangeVisibleTextEditors: jest.fn(() => new Disposable()),
 };
 
+// ---- commands ----
 export const commands = {
-  registerCommand(_command: string, _callback: (...args: any[]) => any) {
-    return new Disposable(() => {});
-  },
-  async executeCommand(_command: string, ..._rest: any[]) {
-    return undefined;
-  },
+  registerCommand: jest.fn(() => new Disposable()),
+  executeCommand: jest.fn(() => Promise.resolve(undefined)),
 };
 
-export const env = {
-  clipboard: {
-    async writeText(text: string) {
-      __mockState.clipboardText = text;
-    },
-    async readText() {
-      return __mockState.clipboardText;
-    },
-  },
-};
-
+// ---- extensions ----
 export const extensions = {
-  getExtension(id: string) {
-    return __mockState.extensions.get(id);
-  },
+  getExtension: jest.fn(() => undefined),
 };
-
-export const lm = {
-  async selectChatModels(_selector: any) {
-    return __mockState.lmModels;
-  },
-};
-
-export interface ExtensionContext {
-  extensionPath: string;
-  extensionUri: Uri;
-  subscriptions: { dispose(): void }[];
-  workspaceState: {
-    get<T>(key: string, defaultValue?: T): T;
-    update(key: string, value: any): Thenable<void>;
-  };
-}
-
-export function makeMockExtensionContext(extensionPath = "/fake/ext/path") {
-  const workspaceStateStore = new Map<string, any>();
-  return {
-    extensionPath,
-    extensionUri: Uri.file(extensionPath),
-    subscriptions: [] as { dispose(): void }[],
-    workspaceState: {
-      get<T>(key: string, defaultValue?: T): T {
-        return workspaceStateStore.has(key)
-          ? workspaceStateStore.get(key)
-          : (defaultValue as T);
-      },
-      async update(key: string, value: any) {
-        if (value === undefined) {
-          workspaceStateStore.delete(key);
-        } else {
-          workspaceStateStore.set(key, value);
-        }
-      },
-      keys() {
-        return Array.from(workspaceStateStore.keys());
-      },
-    },
-  };
-}
