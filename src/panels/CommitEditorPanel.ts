@@ -21,6 +21,8 @@ import {
   getStagedFiles,
   getFrequentValues,
 } from "../utils/git";
+import { getI18nDictionary } from "../i18n";
+import { t } from "../i18n";
 
 const DRAFT_STATE_KEY = "gitCommitMessageEditor.draft";
 const UNDO_STATE_KEY = "gitCommitMessageEditor.undoValue";
@@ -44,7 +46,7 @@ export class CommitEditorPanel {
 
     const panel = vscode.window.createWebviewPanel(
       "gitCommitMessageEditor",
-      "Commit Message Editor",
+      t("Commit Message Editor"),
       targetColumn,
       {
         enableScripts: true,
@@ -108,7 +110,7 @@ export class CommitEditorPanel {
       case "copy":
         await vscode.env.clipboard.writeText(msg.message as string);
         vscode.window.showInformationMessage(
-          "Commit message copied to clipboard.",
+          t("Commit message copied to clipboard."),
         );
         break;
       case "saveDraft":
@@ -212,7 +214,7 @@ export class CommitEditorPanel {
           this.panel.webview.postMessage({
             type: "gitIdentityResult",
             value: "",
-            message: "No active Git repository found.",
+            message: t("No active Git repository found."),
           });
           break;
         }
@@ -223,8 +225,9 @@ export class CommitEditorPanel {
           this.panel.webview.postMessage({
             type: "gitIdentityResult",
             value: "",
-            message:
+            message: t(
               "Git user.name / user.email are not configured for this repository.",
+            ),
           });
           break;
         }
@@ -348,6 +351,7 @@ export class CommitEditorPanel {
         currentInfo,
       },
       defaultEditorMode,
+      i18n: getI18nDictionary(),
     });
 
     await this.sendAutoSuggestions(projectConfig?.data);
@@ -405,7 +409,7 @@ export class CommitEditorPanel {
     try {
       await vscode.workspace.fs.stat(targetUri);
       const overwrite = await vscode.window.showWarningMessage(
-        "commit-message-template.json already exists. Overwrite?",
+        t("commit-message-template.json already exists. Overwrite?"),
         { modal: true },
         "Yes",
       );
@@ -422,7 +426,7 @@ export class CommitEditorPanel {
     const doc = await vscode.workspace.openTextDocument(targetUri);
     await vscode.window.showTextDocument(doc);
     vscode.window.showInformationMessage(
-      "Repo config file created. Edit and commit it to share with the team.",
+      t("Repo config file created. Edit and commit it to share with the team."),
     );
   }
 
@@ -430,7 +434,7 @@ export class CommitEditorPanel {
     const api = await activateGitExtension();
     if (!api) {
       vscode.window.showWarningMessage(
-        "The built-in VS Code Git extension is not active.",
+        t("The built-in VS Code Git extension is not active."),
       );
       return;
     }
@@ -445,7 +449,7 @@ export class CommitEditorPanel {
     );
     repo.inputBox.value = message;
     vscode.window.showInformationMessage(
-      "Commit message inserted into Source Control.",
+      t("Commit message inserted into Source Control."),
     );
 
     if (!this.cfg().get<boolean>("keepAfterSave", true)) {
@@ -461,29 +465,29 @@ export class CommitEditorPanel {
     );
     if (prev === undefined) {
       vscode.window.showInformationMessage(
-        "Nothing to undo (no message has been inserted yet).",
+        t("Nothing to undo (no message has been inserted yet)."),
       );
       return;
     }
     const api = await activateGitExtension();
     const repo = api ? pickRepository(api) : undefined;
     if (!repo) {
-      vscode.window.showWarningMessage("No Git repository found.");
+      vscode.window.showWarningMessage(t("No Git repository found."));
       return;
     }
     repo.inputBox.value = prev;
     await this.context.workspaceState.update(UNDO_STATE_KEY, undefined);
-    vscode.window.showInformationMessage("Last insert undone.");
+    vscode.window.showInformationMessage(t("Last insert undone."));
   }
 
   private async amendLast(message: string) {
     const cwd = await this.getRepoCwd();
     if (!cwd) {
-      vscode.window.showWarningMessage("No repository found.");
+      vscode.window.showWarningMessage(t("No repository found."));
       return;
     }
     const confirm = await vscode.window.showWarningMessage(
-      "The last commit will be replaced with the new message. Continue?",
+      t("The last commit will be replaced with the new message. Continue?"),
       { modal: true },
       "Yes, amend",
     );
@@ -492,9 +496,11 @@ export class CommitEditorPanel {
     }
     try {
       await amendLastCommit(cwd, message);
-      vscode.window.showInformationMessage("Last commit amended successfully.");
+      vscode.window.showInformationMessage(
+        t("Last commit amended successfully."),
+      );
     } catch (e: any) {
-      vscode.window.showErrorMessage(`Amend failed: ${e.message ?? e}`);
+      vscode.window.showErrorMessage(t(`Amend failed: ${e.message ?? e}`));
     }
   }
 
@@ -502,7 +508,7 @@ export class CommitEditorPanel {
   private async writeGitTemplate(message: string) {
     const cwd = await this.getRepoCwd();
     if (!cwd) {
-      vscode.window.showWarningMessage("No repository found.");
+      vscode.window.showWarningMessage(t("No repository found."));
       return;
     }
     const uri = vscode.Uri.file(`${cwd}/.gitmessage`);
@@ -515,11 +521,11 @@ export class CommitEditorPanel {
       (err) => {
         if (err) {
           vscode.window.showErrorMessage(
-            `Failed to set commit.template: ${err.message}`,
+            t(`Failed to set commit.template: ${err.message}`),
           );
         } else {
           vscode.window.showInformationMessage(
-            "Message registered as commit.template (.gitmessage).",
+            t("Message registered as commit.template (.gitmessage)."),
           );
         }
       },
@@ -545,8 +551,9 @@ export class CommitEditorPanel {
     if (!models || models.length === 0) {
       this.panel.webview.postMessage({
         type: "aiDraftError",
-        message:
+        message: t(
           "No language model available. Please install GitHub Copilot Chat and sign in.",
+        ),
       });
       return;
     }
@@ -555,7 +562,7 @@ export class CommitEditorPanel {
     if (!cwd) {
       this.panel.webview.postMessage({
         type: "aiDraftError",
-        message: "No repository found.",
+        message: t("No repository found."),
       });
       return;
     }
@@ -563,7 +570,7 @@ export class CommitEditorPanel {
     if (!diff.trim()) {
       this.panel.webview.postMessage({
         type: "aiDraftError",
-        message: "No changes to analyze (nothing staged).",
+        message: t("No changes to analyze (nothing staged)."),
       });
       return;
     }
@@ -571,12 +578,18 @@ export class CommitEditorPanel {
     try {
       const model = models[0];
       const prompt = [
-        "You are a commit message assistant. Analyze this git diff and respond ONLY with a compact JSON object",
-        "with keys: type, scope, subject, body. type must be one of: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, wip.",
-        "subject must be imperative mood, under 72 chars, no trailing period. body optional, wrap at 100 chars.",
-        "No markdown fences, no extra text, JSON only.",
+        t(
+          "You are a commit message assistant. Analyze this git diff and respond ONLY with a compact JSON object",
+        ),
+        t(
+          "with keys: type, scope, subject, body. type must be one of: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, wip.",
+        ),
+        t(
+          "subject must be imperative mood, under 72 chars, no trailing period. body optional, wrap at 100 chars.",
+        ),
+        t("No markdown fences, no extra text, JSON only."),
         "",
-        "DIFF:",
+        t("DIFF:"),
         diff.slice(0, 12000),
       ].join("\n");
 
@@ -596,7 +609,7 @@ export class CommitEditorPanel {
     } catch (e: any) {
       this.panel.webview.postMessage({
         type: "aiDraftError",
-        message: `AI draft error: ${e.message ?? e}`,
+        message: t(`AI draft error: ${e.message ?? e}`),
       });
     }
   }

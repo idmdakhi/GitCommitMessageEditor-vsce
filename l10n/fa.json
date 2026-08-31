@@ -1,0 +1,174 @@
+{
+  "title": "ویرایشگر پیام کامیت",
+  "loading": "در حال بارگذاری...",
+  "templateName": "نام قالب",
+  "sourceBadge": "منبع",
+  "repoBadge": "مخزن",
+
+  "toolbar": {
+    "insert": "درج",
+    "copy": "کپی",
+    "reset": "بازنشانی",
+    "suggestions": "⚡ پیشنهادات",
+    "gitEditor": "📝 ویرایشگر Git",
+    "more": "⋮ بیشتر"
+  },
+
+  "moreMenu": {
+    "aiDraft": "✨ پیش‌نویس هوشمند",
+    "amendLast": "🔄 اصلاح آخرین",
+    "undoInsert": "↩️ بازگردانی درج",
+    "gitTemplate": "📌 قالب Git",
+    "templateConfig": "⚙ قالب",
+    "repoConfig": "📁 تنظیمات مخزن",
+    "settings": "⚙️ تنظیمات"
+  },
+
+  "form": {
+    "typeLabel": "نوع",
+    "scopeLabel": "دامنه",
+    "subjectLabel": "موضوع",
+    "bodyLabel": "بدنه",
+    "gitmojiLabel": "گیت‌موجی",
+    "autoGitmoji": "گیت‌موجی خودکار",
+    "required": "*",
+    "descriptionType": "نوع تغییر بر اساس استاندارد Conventional Commits",
+    "descriptionScope": "بخش متأثر از کد (اختیاری)",
+    "descriptionSubject": "خلاصه‌ی کوتاه به صورت امری",
+    "descriptionBody": "توضیحات کامل تغییرات و دلیل آن",
+    "descriptionBreakingChange": "تغییرات ناسازگار را توضیح دهید (در صورت وجود)",
+    "descriptionCloses": "شماره‌ی issueهایی که با این کامیت بسته می‌شوند، با کاما جدا کنید",
+    "descriptionResolves": "شماره‌ی issueها؛ # به‌طور خودکار اضافه می‌شود",
+    "descriptionRefs": "issueها یا کامیت‌های مرتبط",
+    "descriptionSeeAlso": "منابع اضافی",
+    "descriptionSignedOffBy": "نام <ایمیل>",
+    "descriptionCoAuthoredBy": "هر خط یک نفر: نام <ایمیل>",
+    "descriptionReviewedBy": "هر خط یک نفر: نام <ایمیل>",
+    "descriptionTestedBy": "هر خط یک نفر: نام <ایمیل>",
+    "descriptionAckedBy": "هر خط یک نفر: نام <ایمیل>",
+    "descriptionReportedBy": "هر خط یک نفر: نام <ایمیل>",
+
+    "frequentLabel": "پرکاربرد:",
+    "saveScope": "➕ ذخیره",
+    "fetchGitIdentity": "⇩ گیت",
+    "formatBody": "✏️ فرمت",
+    "formatBodyTitle": "فرمت خودکار متن بدنه (شکستن خطوط بر اساس maxLineLength)",
+    "placeholderScope": "مثلاً auth, api",
+    "placeholderSignedOffBy": "نام <ایمیل>",
+    "placeholderCloses": "مثلاً 123, 456",
+    "placeholderResolves": "مثلاً 123, 456",
+    "placeholderRefs": "مثلاً PR-42",
+    "placeholderSeeAlso": "مثلاً issue-789",
+    "placeholderCoAuthoredBy": "شخص یکم <one@example.com>",
+    "placeholderReviewedBy": "شخص دوم <two@example.com>",
+    "placeholderTestedBy": "شخص سوم <three@example.com>",
+    "placeholderAckedBy": "شخص چهارم <four@example.com>",
+    "placeholderReportedBy": "شخص پنجم <five@example.com>",
+
+    "breakingChangeLabel": "تغییر ناسازگار",
+    "additionalDetails": "جزئیات تکمیلی",
+    "optionalSection": "فیلدهای اختیاری"
+  },
+
+  "freeform": {
+    "label": "پیام کامیت",
+    "description": "پیام کامیت را دقیقاً همان‌طور که باید ثبت شود بنویسید — بدون فیلد، بدون قالب، فقط متن. خط اول موضوع است؛ قبل از بدنه یک خط خالی بگذارید.",
+    "placeholder": "feat(scope): subject\n\nBody of the commit message..."
+  },
+
+  "preview": {
+    "title": "پیش‌نمایش پیام",
+    "tab": ".git / COMMIT_EDITMSG",
+    "empty": "پیام کامیت شما در اینجا ظاهر می‌شود…",
+    "lineCount": "خط",
+    "linesCount": "خط",
+    "charCount": "کاراکتر"
+  },
+
+  "recentCommits": {
+    "title": "کامیت‌های اخیر",
+    "clickToLoad": "برای بارگذاری کلیک کنید"
+  },
+
+  "dashboard": {
+    "emptyMessage": "پیام آزاد — خالی",
+    "filledMessage": "پیام آزاد",
+    "progress": "بخش",
+    "warning": "هشدار",
+    "warnings": "هشدار",
+    "clickToJump": "برای رفتن کلیک کنید"
+  },
+
+  "status": {
+    "bodyFormatted": "بدنه با موفقیت فرمت شد.",
+    "bodyEmpty": "بدنه خالی است. چیزی برای فرمت وجود ندارد.",
+    "noBodyField": "فیلد 'body' در قالب فعلی وجود ندارد.",
+    "aiDraftApplied": "پیش‌نویس هوشمند اعمال شد.",
+    "noCompatibleFields": "قالب فعال فیلدهای سازگاری برای اعمال ندارد.",
+    "noModel": "هیچ مدل زبانی در دسترس نیست. لطفاً GitHub Copilot Chat را نصب و وارد شوید.",
+    "noRepo": "هیچ مخزنی یافت نشد.",
+    "noChanges": "تغییری برای تحلیل وجود ندارد (هیچ چیزی stage نشده).",
+    "aiError": "خطای پیش‌نویس هوشمند: ",
+    "copySuccess": "پیام کامیت در کلیپ‌بورد کپی شد.",
+    "insertSuccess": "پیام کامیت در Source Control درج شد.",
+    "amendConfirm": "آخرین کامیت با پیام جدید جایگزین می‌شود. ادامه می‌دهید؟",
+    "amendYes": "بله، اصلاح کن",
+    "amendSuccess": "آخرین کامیت با موفقیت اصلاح شد.",
+    "amendFailed": "اصلاح ناموفق: ",
+    "undoNothing": "چیزی برای بازگردانی وجود ندارد (هنوز پیامی درج نشده).",
+    "undoSuccess": "آخرین درج بازگردانی شد.",
+    "gitTemplateSuccess": "پیام به عنوان commit.template (.gitmessage) ثبت شد.",
+    "gitTemplateFailed": "تنظیم commit.template ناموفق: ",
+    "repoConfigExists": "فایل commit-message-template.json از قبل وجود دارد. بازنویسی شود؟",
+    "repoConfigCreated": "فایل تنظیمات مخزن ایجاد شد. آن را ویرایش و commit کنید تا با تیم به اشتراک گذاشته شود.",
+    "noRepoFound": "هیچ مخزنی یافت نشد.",
+    "gitExtensionInactive": "افزونه‌ی Git داخلی VS Code فعال نیست.",
+    "noGitRepo": "هیچ مخزن Git یافت نشد.",
+    "noMessageToApply": "هیچ پیام کامیتی برای اعمال وجود ندارد.",
+    "emptyMessageConfirm": "پیام کامیت پس از حذف کامنت‌ها خالی است.",
+    "continueEmpty": "ادامه با پیام خالی",
+    "cancel": "انصراف",
+    "gitEditorOpen": "✏️ ویرایشگر Git: پیام کامیت خود را بنویسید. خطوطی که با # شروع می‌شوند کامنت هستند. ذخیره (Ctrl+S) برای به‌روزرسانی.",
+    "gitEditorFailed": "باز کردن ویرایشگر Git ناموفق: ",
+    "gitIdentityNotFound": "user.name / user.email در تنظیمات Git برای این مخزن پیکربندی نشده است.",
+    "gitIdentityFetched": "هویت از تنظیمات Git دریافت شد."
+  },
+
+  "configEditor": {
+    "title": "تنظیمات قالب پیام کامیت",
+    "activeTemplate": "قالب فعال:",
+    "activate": "فعال‌سازی",
+    "duplicate": "تکثیر قالب",
+    "delete": "حذف",
+    "save": "💾 ذخیره تغییرات",
+    "export": "خروجی JSON",
+    "import": "ورودی از JSON",
+    "builtIn": "داخلی",
+    "workspace": "مخزن: .vscode/commit-templates",
+    "priority": "اولویت — <b>قالب‌های مخزن</b> (<code>.vscode/commit-templates/*.json</code>) همیشه بر <b>قالب‌های داخلی</b> (همراه افزونه) هنگامی که نام‌ها یکی باشند برتری دارند.",
+    "workspaceDescription": "این قالب در مخزن فعلی ذخیره شده و قابل ویرایش، حذف یا اشتراک‌گذاری از طریق کنترل نسخه است.",
+    "builtInDescription": "این یک قالب داخلی است. از «تکثیر قالب» برای ایجاد یک نسخه‌ی قابل ویرایش و ذخیره‌شده در مخزن استفاده کنید.",
+    "noWorkspace": "⚠ هیچ پوشه‌ی کاری باز نیست — ذخیره‌ی قالب جدید/تکثیرشده تا زمانی که یک مخزن باز کنید امکان‌پذیر نیست.",
+    "hint": "ساختار قالب را به صورت JSON ویرایش کنید. هر token یک شیء با <code>name</code>، <code>label</code>، <code>type</code> (<code>text</code> | <code>boolean</code> | <code>enum</code>) و به‌طور اختیاری <code>prefix</code>، <code>suffix</code>، <code>multiline</code>، <code>issueList</code>، <code>perLine</code>، <code>options</code> است. در <code>template</code>، هر خط ممکن است شامل <code>{tokenName}</code> باشد؛ خطوطی که همه‌ی tokenهایشان خالی هستند به‌طور خودکار از پیام نهایی حذف می‌شوند. ساختار مطابق با <code>schemas/v1-template.schema.json</code> است.",
+    "deleteDisabledTitle": "قالب‌های داخلی قابل حذف نیستند.",
+    "activateSuccess": "قالب «{name}» فعال شد.",
+    "saveSuccess": "قالب «{name}» در .vscode/commit-templates ذخیره شد.",
+    "validationError": "خطای اعتبارسنجی: ",
+    "deleteError": "قالب‌های داخلی قابل حذف نیستند. فقط قالب‌های ذخیره‌شده در .vscode/commit-templates این مخزن قابل حذف هستند.",
+    "exportSuccess": "قالب با موفقیت ذخیره شد.",
+    "importSuccess": "قالب «{name}» با موفقیت وارد شد.",
+    "importFailed": "ورود ناموفق: "
+  },
+
+  "modes": {
+    "form": "🧩 فرم",
+    "freeform": "📝 آزاد"
+  },
+
+  "repoInfo": {
+    "staged": "stage شده",
+    "noRepo": "بدون مخزن",
+    "unknown": "ناشناخته",
+    "detached": "جدا شده"
+  }
+}

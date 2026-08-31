@@ -3,6 +3,7 @@ import { CommitEditorPanel } from "./panels/CommitEditorPanel";
 import { ConfigEditorPanel } from "./panels/ConfigEditorPanel";
 import { ConfigManager } from "./config/configManager";
 import { GitEditorProvider } from "./gitEditorProvider";
+import { I18nManager } from "./i18n";
 
 let statusBarItem: vscode.StatusBarItem | undefined;
 
@@ -39,6 +40,8 @@ function updateScmTitleCommand() {
 
 export function activate(context: vscode.ExtensionContext) {
   const manager = new ConfigManager(context);
+  const i18nManager = I18nManager.getInstance();
+  i18nManager.load(context.extensionPath);
 
   updateScmTitleCommand();
   context.subscriptions.push(
@@ -70,6 +73,15 @@ export function activate(context: vscode.ExtensionContext) {
     statusBarItem = createStatusBar();
     context.subscriptions.push(statusBarItem);
   }
+
+  context.subscriptions.push(
+    vscode.env.onDidChangeLanguage(() => {
+      i18nManager.load(context.extensionPath);
+      // تمام پنل‌های باز را به‌روزرسانی کنید
+      CommitEditorPanel.refreshIfOpen();
+      ConfigEditorPanel.refreshIfOpen();
+    }),
+  );
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {

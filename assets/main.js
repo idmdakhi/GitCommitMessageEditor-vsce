@@ -106,12 +106,26 @@
     }
   }
 
+  function t(key) {
+    const parts = key.split(".");
+    let result = i18n;
+    for (const part of parts) {
+      if (result && typeof result === "object" && result[part] !== undefined) {
+        result = result[part];
+      } else {
+        return key;
+      }
+    }
+    return typeof result === "string" ? result : key;
+  }
+
   function initializeState(msg) {
     config = msg.config || null;
     const defaultEditorMode = msg.defaultEditorMode || "form";
     activeConfigName = msg.activeConfigName || config?.name || "";
     configSource = msg.configSource || "";
     hasProjectConfig = !!msg.hasProjectConfig;
+    i18n = msg.i18n || {};
 
     settings = {
       ...msg.settings,
@@ -1039,56 +1053,56 @@
     const primaryButtons = [
       {
         id: "btn-insert",
-        label: "Insert",
+        label: t("Insert"),
         cls: "primary",
       },
       {
         id: "btn-copy",
-        label: "Copy",
+        label: t("Copy"),
         cls: "secondary",
       },
       {
         id: "btn-reset",
-        label: "Reset",
+        label: t("Reset"),
         cls: "secondary",
       },
       {
         id: "btn-autofill",
-        label: "⚡ Suggestions",
+        label: t("⚡ Suggestions"),
         cls: "secondary",
       },
       {
         id: "btn-giteditor",
-        label: "📝 Git Editor",
+        label: t("📝 Git Editor"),
       },
     ];
 
     const moreButtons = [
       {
         id: "btn-ai",
-        label: "✨ AI Draft",
+        label: t("✨ AI Draft"),
       },
       {
         id: "btn-amend",
-        label: "🔄 Amend Last",
+        label: t("🔄 Amend Last"),
       },
       {
         id: "btn-undo",
-        label: "↩️ Undo Insert",
+        label: t("↩️ Undo Insert"),
       },
       {
         id: "btn-gittemplate",
-        label: "📌 Git Template",
+        label: t("📌 Git Template"),
       },
       {
         id: "btn-config",
-        label: "⚙ Template",
+        label: t("⚙ Template"),
       },
       {
         id: "btn-projectconfig",
-        label: "📁 Repo Config",
+        label: t("📁 Repo Config"),
       },
-      { id: "btn-settings", label: "⚙ Settings" },
+      { id: "btn-settings", label: t("⚙ Settings") },
     ];
 
     return `

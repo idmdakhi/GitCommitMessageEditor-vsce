@@ -110,7 +110,7 @@ Goal: Combine the best features of all three into a single, modern extension.
 - [ ] Full i18n of the UI (Persian + English at minimum)
 - [x] Complete README documentation with screenshots and GIFs
 - [x] Public JSON Schema for the portable config file
-- [ ] Sample ready‑to‑use templates (Default / Gitmoji / Angular / other languages)
+- [x] Sample ready‑to‑use templates (Default / Gitmoji / Angular / other languages)
 
 ## Phase 9 — Future features (optional / needs further investigation)
 
