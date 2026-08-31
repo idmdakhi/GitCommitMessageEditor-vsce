@@ -943,11 +943,9 @@
 
   function showAiStatus(text, isError = false) {
     const element = document.getElementById("ai-status");
-
     if (!element) return;
-
-    element.textContent = text;
-
+    const translated = t(text) !== text ? t(text) : text;
+    element.textContent = translated;
     element.className = `ai-status${isError ? " error" : ""}`;
   }
 
@@ -1815,6 +1813,8 @@
 
   function renderField(token) {
     const requiredMark = token.required ? " *" : "";
+    const labelKey = `form.${token.name}Label`;
+    const label = t(labelKey) !== labelKey ? t(labelKey) : token.label;
 
     const description = token.description
       ? `
@@ -1911,12 +1911,12 @@
     let extraButtons = "";
     if (token.name === "body") {
       extraButtons = `
-      <div class="field-actions" style="display: flex; justify-content: flex-end; margin-top: 4px;">
-        <button class="issue-cell-git-btn" id="btn-format-body-${escapeAttr(token.name)}" type="button" title="Auto-format body text (wrap lines based on maxLineLength)">
-          ✏️ Format
-        </button>
-      </div>
-    `;
+        <div class="field-actions" style="display: flex; justify-content: flex-end; margin-top: 4px;">
+          <button class="issue-cell-git-btn" id="btn-format-body-${escapeAttr(token.name)}" type="button" title="${t("form.formatBodyTitle")}">
+            ${t("form.formatBody")}
+          </button>
+        </div>
+      `;
     }
 
     // ===== ساختار ویژه برای فیلد Body (textarea + دکمه در کنار هم) =====

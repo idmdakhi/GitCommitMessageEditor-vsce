@@ -4,6 +4,7 @@ import { ConfigEditorPanel } from "./panels/ConfigEditorPanel";
 import { ConfigManager } from "./config/configManager";
 import { GitEditorProvider } from "./gitEditorProvider";
 import { I18nManager } from "./i18n";
+import { t } from "./i18n";
 
 let statusBarItem: vscode.StatusBarItem | undefined;
 
@@ -13,7 +14,7 @@ function createStatusBar() {
     90,
   );
   item.text = "$(edit) Commit Msg";
-  item.tooltip = "Open Commit Message Editor";
+  item.tooltip = t("Open Commit Message Editor");
   item.command = "gitCommitMessageEditor.open";
   item.show();
   return item;
@@ -75,11 +76,12 @@ export function activate(context: vscode.ExtensionContext) {
   }
 
   context.subscriptions.push(
-    vscode.env.onDidChangeLanguage(() => {
-      i18nManager.load(context.extensionPath);
-      // تمام پنل‌های باز را به‌روزرسانی کنید
-      CommitEditorPanel.refreshIfOpen();
-      ConfigEditorPanel.refreshIfOpen();
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("gitCommitMessageEditor.language")) {
+        i18nManager.load(context.extensionPath);
+        // به‌روزرسانی پنل‌های باز
+        CommitEditorPanel.refreshIfOpen();
+      }
     }),
   );
 
@@ -176,12 +178,12 @@ export function activate(context: vscode.ExtensionContext) {
       async () => {
         const gitExt = vscode.extensions.getExtension("vscode.git");
         if (!gitExt) {
-          vscode.window.showErrorMessage("Git extension not available.");
+          vscode.window.showErrorMessage(t("Git extension not available."));
           return;
         }
         const gitApi = gitExt.exports.getAPI(1);
         if (!gitApi.repositories || gitApi.repositories.length === 0) {
-          vscode.window.showErrorMessage("No Git repository found.");
+          vscode.window.showErrorMessage(t("No Git repository found."));
           return;
         }
 

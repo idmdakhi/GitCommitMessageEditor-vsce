@@ -2,7 +2,7 @@
   "name": "gitcme",
   "displayName": "Gitcme » Git Commit Message Editor",
   "description": "Modern commit message editor with configurable form, IntelliSense, and AI draft",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "publisher": "idmdakhi",
   "keywords": [
     "git",
@@ -258,6 +258,16 @@
           "type": "boolean",
           "default": true,
           "description": "Show frequent Scope values as clickable chips"
+        },
+        "gitCommitMessageEditor.language": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "en",
+            "fa"
+          ],
+          "default": "auto",
+          "description": "UI language (auto = follow VS Code display language)"
         }
       }
     }

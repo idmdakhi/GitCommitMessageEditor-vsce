@@ -290,7 +290,7 @@ export class CommitEditorPanel {
     try {
       projectConfig = cwd ? loadProjectConfig(cwd) : undefined;
     } catch (e: any) {
-      vscode.window.showWarningMessage(e.message ?? String(e));
+      vscode.window.showWarningMessage(t(e.message ?? String(e)));
     }
 
     let activeConfig = this.manager.getActiveConfig(cwd);
@@ -400,7 +400,7 @@ export class CommitEditorPanel {
   public async createProjectConfigFile() {
     const cwd = await this.getRepoCwd();
     if (!cwd) {
-      vscode.window.showWarningMessage("No repository found.");
+      vscode.window.showWarningMessage(t("No repository found."));
       return;
     }
     const targetUri = vscode.Uri.file(
@@ -440,7 +440,7 @@ export class CommitEditorPanel {
     }
     const repo = pickRepository(api);
     if (!repo) {
-      vscode.window.showWarningMessage("No Git repository found.");
+      vscode.window.showWarningMessage(t("No Git repository found."));
       return;
     }
     await this.context.workspaceState.update(
@@ -682,7 +682,7 @@ export class CommitEditorPanel {
   private async getCurrentRepoInfo() {
     const { repos, currentIndex } = await this.getRepoList();
     if (!repos.length || currentIndex < 0) {
-      return { name: "no repo", branch: "N/A", stagedCount: 0 };
+      return { name: t("no repo"), branch: "N/A", stagedCount: 0 };
     }
     const repo = repos[currentIndex];
     const name = repo.rootUri.fsPath.split(/[\\/]/).pop() || "unknown";

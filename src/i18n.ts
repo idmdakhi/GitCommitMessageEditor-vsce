@@ -2,9 +2,6 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
 
-type I18nKeys = keyof typeof enStrings;
-type I18nNestedKeys = any; // برای سادگی از any استفاده می‌کنیم
-
 export interface I18nDictionary {
   [key: string]: string | { [key: string]: string | any };
 }
@@ -24,12 +21,20 @@ export class I18nManager {
   }
 
   /**
-   * Load the appropriate language file based on VS Code's display language.
+   * Load the appropriate language file based on:
+   * 1. Manual setting `gitCommitMessageEditor.language` (if set to a valid locale)
+   * 2. Otherwise, VS Code's display language (`vscode.env.language`)
    * Falls back to English if the language is not supported.
    */
   public load(extensionPath: string): void {
-    // Get VS Code display language (e.g., 'en', 'fa', 'fr', ...)
-    const locale = vscode.env.language || "en";
+    const config = vscode.workspace.getConfiguration("gitCommitMessageEditor");
+    const manualLang = config.get<string>("language", "auto");
+
+    let locale = manualLang;
+    if (locale === "auto") {
+      locale = vscode.env.language || "en";
+    }
+
     const supportedLocales = ["en", "fa"];
     const lang = supportedLocales.includes(locale) ? locale : "en";
 
@@ -40,7 +45,7 @@ export class I18nManager {
       const raw = fs.readFileSync(filePath, "utf8");
       this.strings = JSON.parse(raw);
     } catch (error) {
-      // Fallback to English if the file is missing or invalid
+      // Fallback to English
       console.warn(
         `[Gitcme i18n] Failed to load locale ${lang}, falling back to English.`,
       );
@@ -56,7 +61,6 @@ export class I18nManager {
 
   /**
    * Get a translated string by dot-notation key.
-   * Example: get('form.typeLabel') -> "Type" or "نوع"
    */
   public t(key: string): string {
     const parts = key.split(".");
@@ -65,34 +69,26 @@ export class I18nManager {
       if (result && typeof result === "object" && result[part] !== undefined) {
         result = result[part];
       } else {
-        // Key not found, return the key itself as fallback
-        return key;
+        return key; // fallback to key
       }
     }
     return typeof result === "string" ? result : key;
   }
 
-  /**
-   * Get the entire dictionary (used to pass to webview)
-   */
   public getDictionary(): I18nDictionary {
     return this.strings;
   }
 
-  /**
-   * Get the current language code
-   */
   public getLanguage(): string {
     return this.currentLang;
   }
 }
 
-// Convenience function for use in other modules
+// Convenience function
 export function t(key: string): string {
   return I18nManager.getInstance().t(key);
 }
 
-// Expose the dictionary for webview
 export function getI18nDictionary(): I18nDictionary {
   return I18nManager.getInstance().getDictionary();
 }

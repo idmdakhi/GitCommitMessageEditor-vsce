@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { ConfigManager } from "../config/configManager";
 import { PortableConfig } from "../config/types";
+import { t } from "../i18n";
 
 export class ConfigEditorPanel {
   public static currentPanel: ConfigEditorPanel | undefined;
@@ -76,7 +77,7 @@ export class ConfigEditorPanel {
         this.onChange();
         this.post();
         vscode.window.showInformationMessage(
-          `Template “${msg.name}” activated.`,
+          t(`Template “${msg.name}” activated.`),
         );
         break;
       case "save": {
@@ -87,10 +88,12 @@ export class ConfigEditorPanel {
           this.onChange();
           this.post();
           vscode.window.showInformationMessage(
-            `Template “${cfg.name}” saved to .vscode/commit-templates.`,
+            t(`Template “${cfg.name}” saved to .vscode/commit-templates.`),
           );
         } catch (e: any) {
-          vscode.window.showErrorMessage(`Validation error: ${e.message ?? e}`);
+          vscode.window.showErrorMessage(
+            t(`Validation error: ${e.message ?? e}`),
+          );
         }
         break;
       }
@@ -123,10 +126,10 @@ export class ConfigEditorPanel {
 
   private validate(cfg: PortableConfig) {
     if (!cfg.name || !cfg.name.trim()) {
-      throw new Error("Template name cannot be empty.");
+      throw new Error(t("Template name cannot be empty."));
     }
     if (!Array.isArray(cfg.tokens) || cfg.tokens.length === 0) {
-      throw new Error("At least one token is required.");
+      throw new Error(t("At least one token is required."));
     }
     const names = new Set<string>();
     for (const t of cfg.tokens) {
@@ -146,7 +149,7 @@ export class ConfigEditorPanel {
       }
     }
     if (!Array.isArray(cfg.template) || cfg.template.length === 0) {
-      throw new Error("template cannot be empty.");
+      throw new Error(t("template cannot be empty."));
     }
   }
 
