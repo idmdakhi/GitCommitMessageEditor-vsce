@@ -1,4 +1,4 @@
-![Gitcme Logo](https://raw.githubusercontent.com/idmdakhi/GitCommitMessageEditor-vsce/main/assets/icon-1280×640px.jpg)
+![Gitcme Logo](https://raw.githubusercontent.com/idmdakhi/GitCommitMessageEditor-vsce/develop/assets/icon-1280×640px.jpg)
 
 # Git Commit Message Editor (Gitcme)
 
