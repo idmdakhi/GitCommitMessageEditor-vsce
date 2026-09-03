@@ -21,15 +21,31 @@
     "commit-message",
     "semantic-commit"
   ],
-  "author": "",
+  "author": {
+    "email": "idmdakhi@gmail.com",
+    "name": "Mohammad Amanalikhani",
+    "url": "https://ima.ir"
+  },
+  "maintainers": [
+    {
+      "email": "",
+      "name": "",
+      "url": ""
+    }
+  ],
+  "icon": "assets/icon-640px.jpg",
   "homepage": "https://github.com/idmdakhi/GitCommitMessageEditor-vsce#readme",
   "license": "MIT",
+  "sponsor": {
+    "url": "https://github.com/sponsors/GitCommitMessageEditor-vsce"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/idmdakhi/GitCommitMessageEditor-vsce.git"
   },
   "bugs": {
-    "url": "https://github.com/idmdakhi/GitCommitMessageEditor-vsce/issues"
+    "url": "https://github.com/idmdakhi/GitCommitMessageEditor-vsce/issues",
+    "email": "idmdakhi@gmail.com"
   },
   "directories": {
     "assets": "assets",
