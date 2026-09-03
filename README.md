@@ -1,3 +1,29 @@
+![Gitcme Logo](https://raw.githubusercontent.com/idmdakhi/GitCommitMessageEditor-vsce/main/assets/icon.png)
+
+# Git Commit Message Editor (Gitcme)
+
+**Modern VS Code extension for writing clear, consistent commit messages**
+
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/idmdakhi.gitcme?label=VS%20Code%20Marketplace&style=for-the-badge&logo=visualstudiocode)](https://marketplace.visualstudio.com/items?itemName=idmdakhi.gitcme)
+[![Downloads](https://img.shields.io/visual-studio-marketplace/d/idmdakhi.gitcme?style=for-the-badge&logo=visualstudiocode)](https://marketplace.visualstudio.com/items?itemName=idmdakhi.gitcme)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/idmdakhi.gitcme?style=for-the-badge&logo=visualstudiocode)](https://marketplace.visualstudio.com/items?itemName=idmdakhi.gitcme)
+
+[![GitHub stars](https://img.shields.io/github/stars/idmdakhi/GitCommitMessageEditor-vsce?style=social)](https://github.com/idmdakhi/GitCommitMessageEditor-vsce)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://github.com/idmdakhi/GitCommitMessageEditor-vsce/blob/main/LICENSE)
+[![VS Code](https://img.shields.io/badge/VS%20Code-1.85.0+-blue?style=for-the-badge&logo=visualstudiocode)](https://code.visualstudio.com/)
+[![Version](https://img.shields.io/badge/version-1.7.0-green?style=for-the-badge)](https://github.com/idmdakhi/GitCommitMessageEditor-vsce/releases)
+
+---
+
+## 📦 Quick Links
+
+- [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=idmdakhi.gitcme)
+- [GitHub Repository](https://github.com/idmdakhi/GitCommitMessageEditor-vsce)
+- [Documentation (Wiki)](https://github.com/idmdakhi/GitCommitMessageEditor-vsce/wiki)
+- [Issues](https://github.com/idmdakhi/GitCommitMessageEditor-vsce/issues)
+
+---
+
 # User Guide for Git Commit Message Editor (Gitcme)
 
 Welcome to the **Git Commit Message Editor**, a modern VS Code extension that helps you write clear, consistent, and informative commit messages. It combines a configurable form, live preview, smart suggestions, AI drafting, and full support for Conventional Commits, Gitmoji, and custom templates – all in one place.
