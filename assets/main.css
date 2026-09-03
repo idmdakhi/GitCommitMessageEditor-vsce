@@ -491,7 +491,7 @@ button.secondary {
   font-family: var(--cme-mono);
   font-size: 10px;
   color: var(--cme-faint);
-  text-align: right;
+  text-align: end;
   margin-top: 4px;
   font-variant-numeric: tabular-nums;
 }
@@ -741,7 +741,7 @@ button.secondary {
 .issue-cell--stack .issue-cell-row .scope-add-btn {
   /* align-self: flex-start; */
   flex-shrink: 0;
-  margin-left: 0;
+  margin-inline-start: 0;
 }
 
 /* wide variant: for a single-line pill that needs more room than the
@@ -972,6 +972,9 @@ button.secondary {
   font-family: var(--cme-mono);
   font-size: 12px;
   line-height: 1.7;
+  /* Intentionally always LTR: this mimics a line-numbered code/terminal
+     view of the raw commit message, the same way VS Code's own editor
+     gutter stays LTR-anchored regardless of the UI display language. */
   direction: ltr;
   text-align: left;
   max-height: min(52vh, 460px);
@@ -1127,7 +1130,7 @@ button.secondary {
   border-radius: var(--cme-radius-sm);
   padding: 3px 7px;
   font-size: 11px;
-  margin-left: auto;
+  margin-inline-start: auto;
   max-width: 180px;
 }
 
@@ -1221,7 +1224,7 @@ button.secondary {
 .toolbar .more-menu .dropdown-content button {
   display: block;
   width: 100%;
-  text-align: left;
+  text-align: start;
   border: none;
   background: transparent;
   color: var(--vscode-foreground);
@@ -1246,7 +1249,7 @@ button.secondary {
   border-top-color: var(--cme-accent);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
-  margin-right: 4px;
+  margin-inline-end: 4px;
   vertical-align: middle;
 }
 @keyframes spin {
@@ -1265,7 +1268,7 @@ button.secondary {
   color: var(--cme-muted);
   cursor: pointer;
   transition: all 0.1s;
-  margin-left: 4px;
+  margin-inline-start: 4px;
 }
 .scope-add-btn:hover {
   border-color: var(--cme-accent);
@@ -1276,6 +1279,6 @@ button.secondary {
 .freq-chips .freq-label {
   font-size: 9.5px;
   color: var(--cme-faint);
-  margin-right: 6px;
+  margin-inline-end: 6px;
   font-weight: 500;
 }

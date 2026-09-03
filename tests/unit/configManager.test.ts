@@ -2,10 +2,11 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import type { ConfigManager as ConfigManagerType } from "../../src/config/configManager";
-import ConfigManager from "../../src/config/configManager";
 import { PortableConfig } from "../../src/config/types";
 import type * as VscodeMockModule from "../__mocks__/vscode";
 import * as vscodeMock from "../__mocks__/vscode";
+
+const REPO_ROOT = path.resolve(__dirname, "../..");
 
 // `configManager.ts` keeps a module-level `bundledTemplatesCache` that
 // persists for the lifetime of the module. Since each test below uses a
@@ -13,6 +14,13 @@ import * as vscodeMock from "../__mocks__/vscode";
 // module registry per test (via jest.isolateModules) so both the
 // `vscode` mock and `configManager` are freshly required together and
 // the cache never leaks across tests.
+//
+// Note: this isolation also means configManager.ts's internal
+// `import { t } from "../i18n"` resolves to its OWN fresh I18nManager
+// singleton each time, separate from any `I18nManager` imported at this
+// file's top level — so the real dictionary has to be loaded from
+// *within* the same isolateModules callback for t() to return real
+// strings instead of raw keys.
 let ConfigManager: typeof ConfigManagerType;
 
 function writeTemplate(dir: string, fileName: string, config: PortableConfig) {
@@ -45,6 +53,23 @@ describe("ConfigManager", () => {
     extensionPath = fs.mkdtempSync(path.join(os.tmpdir(), "gitcme-ext-"));
     cwd = fs.mkdtempSync(path.join(os.tmpdir(), "gitcme-repo-"));
     context = vscodeMock.makeMockExtensionContext(extensionPath);
+
+    // configManager.ts keeps bundledTemplatesCache at module scope, keyed
+    // by nothing (in real usage extensionPath never changes within a
+    // running VS Code session, so that's fine — but across tests, each of
+    // which uses its own fresh temp extensionPath, a shared cache would
+    // silently return a previous test's templates). jest.isolateModules
+    // gives this test a fresh copy of the module with its own cache scope.
+    // registerMock re-points "vscode" at the SAME already-imported mock
+    // instance (not a second, disconnected one), so state set through
+    // vscodeMock.__mockState below is visible to the isolated module.
+    jest.isolateModules(() => {
+      jest.doMock("vscode", () => vscodeMock);
+      const i18nModule = require("../../src/i18n");
+      i18nModule.I18nManager.getInstance().load(REPO_ROOT);
+      ConfigManager = require("../../src/config/configManager").ConfigManager;
+    });
+
     manager = new ConfigManager(context as any);
   });
 

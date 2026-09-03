@@ -1,11 +1,27 @@
 // tests/unit/gitEditorProvider.test.ts
+import * as path from "path";
 import { GitEditorProvider } from "../../src/gitEditorProvider";
+import { I18nManager } from "../../src/i18n";
 import * as vscode from "vscode";
 
 jest.mock("child_process", () => ({
   execSync: jest.fn(),
 }));
 import { execSync } from "child_process";
+
+// t() برمی‌گرداند خود کلید را وقتی دیکشنری بارگذاری نشده باشد (رفتار
+// fallback). برای اینکه این تست‌ها واقعاً متن انگلیسی نهایی را که کاربر
+// می‌بیند بررسی کنند (نه صرفاً کلیدهای داخلی)، دیکشنری واقعی en.json یک‌بار
+// بارگذاری می‌شود. چون I18nManager یک singleton است و load() فقط یک‌بار در
+// اینجا فراخوانی می‌شود، این وضعیت مستقل از تنظیمات getConfiguration در هر
+// تست باقی می‌ماند.
+beforeAll(() => {
+  (vscode.workspace.getConfiguration as jest.Mock).mockReturnValue({
+    get: jest.fn().mockReturnValue("en"),
+    update: jest.fn(),
+  });
+  I18nManager.getInstance().load(path.resolve(__dirname, "../.."));
+});
 
 function makeContext(): any {
   return {

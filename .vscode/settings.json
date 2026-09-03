@@ -4,7 +4,8 @@
   "gitCommitMessageEditor.scopes": [],
   "gitCommitMessageEditor.types": [],
   // "editor.rulers": [50, 72],
-  "files.trimTrailingWhitespace": true,
-  "gitCommitMessageEditor.scmTitleCommand": "open",
-  "gitCommitMessageEditor.defaultEditorMode": "form"
+  "files.trimTrailingWhitespace": true
+  // "gitCommitMessageEditor.scmTitleCommand": "open",
+  // "gitCommitMessageEditor.defaultEditorMode": "form",
+  // "gitCommitMessageEditor.language": "en"
 }

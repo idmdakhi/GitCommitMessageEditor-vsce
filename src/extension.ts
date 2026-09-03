@@ -3,6 +3,8 @@ import { CommitEditorPanel } from "./panels/CommitEditorPanel";
 import { ConfigEditorPanel } from "./panels/ConfigEditorPanel";
 import { ConfigManager } from "./config/configManager";
 import { GitEditorProvider } from "./gitEditorProvider";
+import { I18nManager } from "./i18n";
+import { t } from "./i18n";
 
 let statusBarItem: vscode.StatusBarItem | undefined;
 
@@ -12,7 +14,7 @@ function createStatusBar() {
     90,
   );
   item.text = "$(edit) Commit Msg";
-  item.tooltip = "Open Commit Message Editor";
+  item.tooltip = t("statusBar.tooltip");
   item.command = "gitCommitMessageEditor.open";
   item.show();
   return item;
@@ -39,6 +41,8 @@ function updateScmTitleCommand() {
 
 export function activate(context: vscode.ExtensionContext) {
   const manager = new ConfigManager(context);
+  const i18nManager = I18nManager.getInstance();
+  i18nManager.load(context.extensionPath);
 
   updateScmTitleCommand();
   context.subscriptions.push(
@@ -70,6 +74,16 @@ export function activate(context: vscode.ExtensionContext) {
     statusBarItem = createStatusBar();
     context.subscriptions.push(statusBarItem);
   }
+
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("gitCommitMessageEditor.language")) {
+        i18nManager.load(context.extensionPath);
+        // به‌روزرسانی پنل‌های باز
+        CommitEditorPanel.refreshIfOpen();
+      }
+    }),
+  );
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
@@ -164,12 +178,12 @@ export function activate(context: vscode.ExtensionContext) {
       async () => {
         const gitExt = vscode.extensions.getExtension("vscode.git");
         if (!gitExt) {
-          vscode.window.showErrorMessage("Git extension not available.");
+          vscode.window.showErrorMessage(t("status.gitExtensionNotAvailable"));
           return;
         }
         const gitApi = gitExt.exports.getAPI(1);
         if (!gitApi.repositories || gitApi.repositories.length === 0) {
-          vscode.window.showErrorMessage("No Git repository found.");
+          vscode.window.showErrorMessage(t("status.noGitRepo"));
           return;
         }
 

@@ -127,6 +127,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - _(Future features – see [docs/TODO.md](docs/TODO.md))_
 
+- **Full i18n support** – Persian (fa) and English (en) translations for all UI strings (extension and webview)
+- Language detection follows VS Code display language; users can manually override via `gitCommitMessageEditor.language` setting
+
 ---
 
 ## Legend

@@ -68,19 +68,19 @@
       case "autoSuggestions":
         pendingActions.autoSuggest = false;
         applyAutoSuggestions(msg.suggestions || {});
-        hideSpinner("btn-autofill", "⚡ Suggestions");
+        hideSpinner("btn-autofill", t("toolbar.suggestions"));
         break;
 
       case "aiDraftResult":
         pendingActions.aiDraft = false;
         applyAiDraft(msg.draft || {});
-        hideSpinner("btn-ai", "✨ AI Draft");
+        hideSpinner("btn-ai", t("moreMenu.aiDraft"));
         break;
 
       case "aiDraftError":
         pendingActions.aiDraft = false;
-        showAiStatus(msg.message || "AI draft failed.", true);
-        hideSpinner("btn-ai", "✨ AI Draft");
+        showAiStatus(msg.message || t("status.aiDraftFailed"), true);
+        hideSpinner("btn-ai", t("moreMenu.aiDraft"));
         break;
 
       case "loadRawMessage":
@@ -106,12 +106,32 @@
     }
   }
 
+  function t(key, params) {
+    const parts = key.split(".");
+    let result = i18n;
+    for (const part of parts) {
+      if (result && typeof result === "object" && result[part] !== undefined) {
+        result = result[part];
+      } else {
+        return key;
+      }
+    }
+    if (typeof result !== "string") return key;
+    if (!params) return result;
+    return result.replace(/\{(\w+)\}/g, (match, name) =>
+      Object.prototype.hasOwnProperty.call(params, name)
+        ? String(params[name])
+        : match,
+    );
+  }
+
   function initializeState(msg) {
     config = msg.config || null;
     const defaultEditorMode = msg.defaultEditorMode || "form";
     activeConfigName = msg.activeConfigName || config?.name || "";
     configSource = msg.configSource || "";
     hasProjectConfig = !!msg.hasProjectConfig;
+    i18n = msg.i18n || {};
 
     settings = {
       ...msg.settings,
@@ -318,14 +338,11 @@
 
     if (gitIdentityBtn) {
       gitIdentityBtn.disabled = false;
-      gitIdentityBtn.textContent = "⇩ Git";
+      gitIdentityBtn.textContent = t("form.fetchGitIdentity");
     }
 
     if (!value) {
-      showAiStatus(
-        errorMessage || "Could not read user.name/user.email from Git config.",
-        true,
-      );
+      showAiStatus(errorMessage || t("status.gitIdentityNotFound"), true);
       return;
     }
 
@@ -370,9 +387,7 @@
     render();
 
     showAiStatus(
-      changed
-        ? "AI draft applied."
-        : "Active template has no compatible fields to apply.",
+      changed ? t("status.aiDraftApplied") : t("status.noCompatibleFields"),
       !changed,
     );
   }
@@ -607,13 +622,13 @@
   function formatBody() {
     const token = findToken("body");
     if (!token) {
-      showAiStatus("No 'body' field found in the current template.", true);
+      showAiStatus(t("status.noBodyField"), true);
       return;
     }
 
     const raw = fieldValue("body");
     if (!raw.trim()) {
-      showAiStatus("Body is empty. Nothing to format.", true);
+      showAiStatus(t("status.bodyEmpty"), true);
       return;
     }
 
@@ -664,7 +679,7 @@
 
     saveDraft();
     render();
-    showAiStatus("Body formatted successfully.", false);
+    showAiStatus(t("status.bodyFormatted"), false);
   }
 
   // یک پیام آزاد را برای درج نهایی آماده می‌کند: خطوط خالی ابتدای پیام
@@ -713,21 +728,21 @@
       if (subject.length > maxSubject) {
         warnings.push({
           field: "subject",
-          message: `Subject is longer than ${maxSubject} characters.`,
+          message: t("validation.subjectTooLong", { max: maxSubject }),
         });
       }
 
       if (/[.]\s*$/.test(subject.trim())) {
         warnings.push({
           field: "subject",
-          message: "Subject should not end with a period.",
+          message: t("validation.subjectNoPeriod"),
         });
       }
 
       if (subject.trim() && /^[A-Z]/.test(subject.trim())) {
         warnings.push({
           field: "subject",
-          message: "Subject should not start with a capital letter.",
+          message: t("validation.subjectNoCapital"),
         });
       }
 
@@ -738,7 +753,7 @@
       ) {
         warnings.push({
           field: "subject",
-          message: "Use imperative mood (add, not added).",
+          message: t("validation.imperativeMood"),
         });
       }
     }
@@ -755,9 +770,10 @@
       ) {
         warnings.push({
           field: token.name,
-          message:
-            `One or more lines in “${token.label}” exceed ` +
-            `${token.maxLineLength} characters.`,
+          message: t("validation.lineTooLong", {
+            label: token.label,
+            max: token.maxLineLength,
+          }),
         });
       }
 
@@ -768,7 +784,7 @@
         if (!hasValue) {
           warnings.push({
             field: token.name,
-            message: `Required field “${token.label}” is empty.`,
+            message: t("validation.fieldRequired", { label: token.label }),
           });
         }
       }
@@ -788,7 +804,7 @@
       return [
         {
           field: "freeform-message",
-          message: "Commit message is empty.",
+          message: t("validation.messageEmpty"),
         },
       ];
     }
@@ -801,21 +817,21 @@
     if (subject.length > maxSubject) {
       warnings.push({
         field: "freeform-message",
-        message: `First line is longer than ${maxSubject} characters.`,
+        message: t("validation.firstLineTooLong", { max: maxSubject }),
       });
     }
 
     if (/[.]\s*$/.test(subject.trim())) {
       warnings.push({
         field: "freeform-message",
-        message: "First line should not end with a period.",
+        message: t("validation.firstLineNoPeriod"),
       });
     }
 
     if (subject.trim() && /^[A-Z]/.test(subject.trim())) {
       warnings.push({
         field: "freeform-message",
-        message: "First line should not start with a capital letter.",
+        message: t("validation.firstLineNoCapital"),
       });
     }
 
@@ -826,14 +842,14 @@
     ) {
       warnings.push({
         field: "freeform-message",
-        message: "Use imperative mood (add, not added).",
+        message: t("validation.imperativeMood"),
       });
     }
 
     if (lines.length > 1 && lines[1].trim() !== "") {
       warnings.push({
         field: "freeform-message",
-        message: "Leave a blank line between the first line and the body.",
+        message: t("validation.blankLineRequired"),
       });
     }
 
@@ -842,7 +858,7 @@
     if (lines.slice(2).some((line) => line.length > maxLine)) {
       warnings.push({
         field: "freeform-message",
-        message: `One or more lines in the body exceed ${maxLine} characters.`,
+        message: t("validation.bodyLineTooLong", { max: maxLine }),
       });
     }
 
@@ -871,7 +887,7 @@
 
       if (!value) {
         valid = false;
-        message = `“${token.label}” is required.`;
+        message = t("validation.fieldValueRequired", { label: token.label });
       }
     }
 
@@ -881,7 +897,10 @@
       if (length > token.maxLength) {
         valid = false;
 
-        message = `Exceeds max length (${length}/${token.maxLength}).`;
+        message = t("validation.exceedsMaxLength", {
+          length,
+          max: token.maxLength,
+        });
       }
     }
 
@@ -891,17 +910,17 @@
       if (subject) {
         if (/[.]\s*$/.test(subject)) {
           valid = false;
-          message = "Subject should not end with a period.";
+          message = t("validation.subjectNoPeriod");
         } else if (/^[A-Z]/.test(subject)) {
           valid = false;
-          message = "Subject should not start with a capital letter.";
+          message = t("validation.subjectNoCapital");
         } else if (
           /^(added|fixed|changed|removed|updated|created|deleted)\b/i.test(
             subject,
           )
         ) {
           valid = false;
-          message = "Use imperative mood (add, not added).";
+          message = t("validation.imperativeMood");
         }
       }
     }
@@ -929,11 +948,9 @@
 
   function showAiStatus(text, isError = false) {
     const element = document.getElementById("ai-status");
-
     if (!element) return;
-
-    element.textContent = text;
-
+    const translated = t(text) !== text ? t(text) : text;
+    element.textContent = translated;
     element.className = `ai-status${isError ? " error" : ""}`;
   }
 
@@ -1039,56 +1056,56 @@
     const primaryButtons = [
       {
         id: "btn-insert",
-        label: "Insert",
+        label: t("toolbar.insert"),
         cls: "primary",
       },
       {
         id: "btn-copy",
-        label: "Copy",
+        label: t("toolbar.copy"),
         cls: "secondary",
       },
       {
         id: "btn-reset",
-        label: "Reset",
+        label: t("toolbar.reset"),
         cls: "secondary",
       },
       {
         id: "btn-autofill",
-        label: "⚡ Suggestions",
+        label: t("toolbar.suggestions"),
         cls: "secondary",
       },
       {
         id: "btn-giteditor",
-        label: "📝 Git Editor",
+        label: t("toolbar.gitEditor"),
       },
     ];
 
     const moreButtons = [
       {
         id: "btn-ai",
-        label: "✨ AI Draft",
+        label: t("moreMenu.aiDraft"),
       },
       {
         id: "btn-amend",
-        label: "🔄 Amend Last",
+        label: t("moreMenu.amendLast"),
       },
       {
         id: "btn-undo",
-        label: "↩️ Undo Insert",
+        label: t("moreMenu.undoInsert"),
       },
       {
         id: "btn-gittemplate",
-        label: "📌 Git Template",
+        label: t("moreMenu.gitTemplate"),
       },
       {
         id: "btn-config",
-        label: "⚙ Template",
+        label: t("moreMenu.templateConfig"),
       },
       {
         id: "btn-projectconfig",
-        label: "📁 Repo Config",
+        label: t("moreMenu.repoConfig"),
       },
-      { id: "btn-settings", label: "⚙ Settings" },
+      { id: "btn-settings", label: t("moreMenu.settings") },
     ];
 
     return `
@@ -1801,6 +1818,8 @@
 
   function renderField(token) {
     const requiredMark = token.required ? " *" : "";
+    const labelKey = `form.${token.name}Label`;
+    const label = t(labelKey) !== labelKey ? t(labelKey) : token.label;
 
     const description = token.description
       ? `
@@ -1897,12 +1916,12 @@
     let extraButtons = "";
     if (token.name === "body") {
       extraButtons = `
-      <div class="field-actions" style="display: flex; justify-content: flex-end; margin-top: 4px;">
-        <button class="issue-cell-git-btn" id="btn-format-body-${escapeAttr(token.name)}" type="button" title="Auto-format body text (wrap lines based on maxLineLength)">
-          ✏️ Format
-        </button>
-      </div>
-    `;
+        <div class="field-actions" style="display: flex; justify-content: flex-end; margin-top: 4px;">
+          <button class="issue-cell-git-btn" id="btn-format-body-${escapeAttr(token.name)}" type="button" title="${t("form.formatBodyTitle")}">
+            ${t("form.formatBody")}
+          </button>
+        </div>
+      `;
     }
 
     // ===== ساختار ویژه برای فیلد Body (textarea + دکمه در کنار هم) =====
