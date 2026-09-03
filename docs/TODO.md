@@ -68,7 +68,7 @@ Goal: Combine the best features of all three into a single, modern extension.
 
 ## Phase 5 — User experience and productivity
 
-- [x] Sticky status dashboard at the top of the form:
+- [x] Sticky status dashboard at the top of the form
   - [x] Status chip for each section (green=complete / red=required&missing / grey=optional)
   - [x] Click on a chip → focus on that field
   - [x] Progress counter («X of N sections»)
@@ -77,7 +77,7 @@ Goal: Combine the best features of all three into a single, modern extension.
   - [x] Character counter for subject with configurable maximum
   - [x] Warning for long lines in body
   - [x] Style Lint: warning for trailing period, initial capital letter, past‑tense verb instead of imperative
-- [ ] Remember most frequently used type/scope values as clickable chips
+- [x] Remember most frequently used type/scope values as clickable chips
 - [x] Browse and select from recent commits (auto‑fill the form if the pattern matches)
 - [x] Open the form/dashboard in a full‑sized tab in the centre (in addition to the Sidebar)
 - [x] Sync state between Sidebar and full‑tab instances via workspaceState/globalState
@@ -100,7 +100,13 @@ Goal: Combine the best features of all three into a single, modern extension.
 - [x] `rememberFrequentValues`
 - [x] `showRecentCommits` (+ `maxItems`)
 - [x] `emojiPrefix` (enable Gitmoji by default)
-- [x] `editor.keepAfterSave` (keep or close the tab after saving)
+- [x] `keepAfterSave` (keep or close the tab after saving)
+- [x] `autoApplyGitEditor`
+- [x] `defaultEditorMode`
+- [x] `scmTitleCommand`
+- [x] `rememberFrequentTypes`
+- [x] `rememberFrequentScopes`
+- [x] `language`
 - [ ] `intelliSense.completion.logScopes.enabled`
 - [ ] `intelliSense.completion.issues.pageSize`
 - [ ] `intelliSense.hover.enabled`

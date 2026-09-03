@@ -6,6 +6,57 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.7.0] - 2026-09-03
+
+### Added
+
+#### Core Editor
+
+- **Free‑form Text mode** – toggle between structured form and free‑text writing with a large textarea (#Phase2)
+- **Git Editor Mode** – edit `COMMIT_EDITMSG` directly in a full VS Code editor with 50/72 rulers and auto‑apply (#Phase0)
+- **Advanced Issue/PR references** – full support for GitHub autolinked references:
+  - `#123`, `GH-123`, `owner/repo#123`, `org/repo#123`
+  - Multiple keywords per field: `Resolves #10, resolves #123, resolves octo-org/octo-repo#100`
+  - Supported keywords: `close`, `closes`, `closed`, `fix`, `fixes`, `fixed`, `resolve`, `resolves`, `resolved`
+- **Internationalization (i18n)** – UI now supports English and Persian (فارسی) with automatic language detection
+
+#### Toolbar & Actions
+
+- **Mode tabs** – switch between Form and Free Text modes with a single click
+- **Format Body** – auto‑wrap body lines based on `maxLineLength`, preserving paragraphs (#Phase6)
+- **Git Editor commands**:
+  - `Open as Git Editor (COMMIT_EDITMSG)`
+  - `Apply Git Editor Message`
+  - `Close Git Editor`
+
+#### Configuration
+
+- `autoApplyGitEditor` – automatically apply message to SCM on Git Editor save (default: `true`)
+- `defaultEditorMode` – default editor mode (`"form"` or `"freeform"`)
+- `scmTitleCommand` – choose which command appears in the SCM title bar (`"open"` or `"openAsGitEditor"`)
+- `rememberFrequentTypes` – show frequent Type values as clickable chips (default: `true`)
+- `rememberFrequentScopes` – show frequent Scope values as clickable chips (default: `true`)
+- `language` – UI language selection (`"auto"`, `"en"`, `"fa"`)
+
+#### Git Integration
+
+- **Frequent values** – Type and Scope values are extracted from the last 50 commits and shown as clickable chips (#Phase5)
+- **Virtual FileSystem Provider** – Git Editor mode now uses a proper `FileSystemProvider`, making the document editable and savable (no read‑only issues)
+
+### Changed
+
+- **Issue field processing** – completely rewritten to support multiple keywords and GitHub's autolinked reference format
+- **Draft persistence** – now saves `editorMode` and `freeformText` across sessions
+- **SCM title icon** – you can now choose between the standard editor and Git Editor mode via `scmTitleCommand`
+- **FileSystemProvider** – replaced the old `TextDocumentContentProvider` with a proper `FileSystemProvider` for the Git Editor mode, enabling real save/auto‑apply
+
+### Fixed
+
+- **Git Editor read‑only issue** – resolved by using a `FileSystemProvider` (the document is now fully editable and savable)
+- **Auto‑apply on save** – the Git Editor now correctly applies the message to SCM when you save (`Ctrl+S`) without requiring manual intervention
+
+---
+
 ## [1.0.0] - 2026-08-27
 
 ### Added
@@ -143,4 +194,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+[1.7.0]: https://github.com/idmdakhi/GitCommitMessageEditor-vsce/releases/tag/v1.7.0
 [1.0.0]: https://github.com/idmdakhi/GitCommitMessageEditor-vsce/releases/tag/v1.0.0
