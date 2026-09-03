@@ -104,6 +104,7 @@
     "bodyEmpty": "بدنه خالی است. چیزی برای فرمت وجود ندارد.",
     "noBodyField": "فیلد 'body' در قالب فعلی وجود ندارد.",
     "aiDraftApplied": "پیش‌نویس هوشمند اعمال شد.",
+    "aiDraftFailed": "پیش‌نویس هوشمند ناموفق بود.",
     "noCompatibleFields": "قالب فعال فیلدهای سازگاری برای اعمال ندارد.",
     "noModel": "هیچ مدل زبانی در دسترس نیست. لطفاً GitHub Copilot Chat را نصب و وارد شوید.",
     "noRepo": "هیچ مخزنی یافت نشد.",
@@ -131,7 +132,10 @@
     "gitEditorOpen": "✏️ ویرایشگر Git: پیام کامیت خود را بنویسید. خطوطی که با # شروع می‌شوند کامنت هستند. ذخیره (Ctrl+S) برای به‌روزرسانی.",
     "gitEditorFailed": "باز کردن ویرایشگر Git ناموفق: ",
     "gitIdentityNotFound": "user.name / user.email در تنظیمات Git برای این مخزن پیکربندی نشده است.",
-    "gitIdentityFetched": "هویت از تنظیمات Git دریافت شد."
+    "gitIdentityFetched": "هویت از تنظیمات Git دریافت شد.",
+    "gitExtensionNotAvailable": "افزونه‌ی Git در دسترس نیست.",
+    "repositoryNotFound": "مخزن یافت نشد.",
+    "gitEditorSaved": "پیام ذخیره شد. برای درج در Source Control از «Apply Git Editor Message» استفاده کنید."
   },
 
   "configEditor": {
@@ -157,7 +161,17 @@
     "deleteError": "قالب‌های داخلی قابل حذف نیستند. فقط قالب‌های ذخیره‌شده در .vscode/commit-templates این مخزن قابل حذف هستند.",
     "exportSuccess": "قالب با موفقیت ذخیره شد.",
     "importSuccess": "قالب «{name}» با موفقیت وارد شد.",
-    "importFailed": "ورود ناموفق: "
+    "importFailed": "ورود ناموفق: ",
+    "noWorkspaceForSave": "هیچ مخزن/پوشه‌ی کاری بازی وجود ندارد — قالب‌ها در .vscode/commit-templates درون مخزن ذخیره می‌شوند، پس ابتدا باید یک پوشه‌ی کاری باز باشد.",
+    "saveLabel": "ذخیره‌ی قالب",
+    "importDialogLabel": "ورود قالب",
+    "invalidFileStructure": "ساختار فایل نامعتبر است (tokens یا template وجود ندارد).",
+    "nameRequired": "نام قالب نمی‌تواند خالی باشد.",
+    "tokenRequired": "حداقل یک token لازم است.",
+    "templateRequired": "ساختار قالب نمی‌تواند خالی باشد.",
+    "invalidTokenName": "نام token «{name}» نامعتبر است (فقط حروف و اعداد انگلیسی، بدون فاصله).",
+    "duplicateTokenName": "نام token تکراری: {name}",
+    "enumRequiresOptions": "token از نوع enum با نام «{name}» باید حداقل یک گزینه داشته باشد."
   },
 
   "modes": {
@@ -165,10 +179,31 @@
     "freeform": "📝 آزاد"
   },
 
+  "statusBar": {
+    "tooltip": "باز کردن ویرایشگر پیام کامیت"
+  },
+
   "repoInfo": {
     "staged": "stage شده",
     "noRepo": "بدون مخزن",
     "unknown": "ناشناخته",
     "detached": "جدا شده"
+  },
+
+  "validation": {
+    "subjectTooLong": "طول Subject بیش از {max} نویسه است.",
+    "subjectNoPeriod": "Subject نباید با نقطه پایان یابد.",
+    "subjectNoCapital": "Subject نباید با حرف بزرگ شروع شود.",
+    "imperativeMood": "از حالت امری استفاده کنید (add، نه added).",
+    "lineTooLong": "یک یا چند خط در «{label}» بیش از {max} نویسه است.",
+    "fieldRequired": "فیلد الزامی «{label}» خالی است.",
+    "messageEmpty": "پیام کامیت خالی است.",
+    "firstLineTooLong": "طول خط اول بیش از {max} نویسه است.",
+    "firstLineNoPeriod": "خط اول نباید با نقطه پایان یابد.",
+    "firstLineNoCapital": "خط اول نباید با حرف بزرگ شروع شود.",
+    "blankLineRequired": "بین خط اول و بدنه یک خط خالی بگذارید.",
+    "bodyLineTooLong": "یک یا چند خط در بدنه بیش از {max} نویسه است.",
+    "fieldValueRequired": "«{label}» الزامی است.",
+    "exceedsMaxLength": "از حداکثر طول مجاز بیشتر است ({length}/{max})."
   }
 }

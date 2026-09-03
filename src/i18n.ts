@@ -60,9 +60,11 @@ export class I18nManager {
   }
 
   /**
-   * Get a translated string by dot-notation key.
+   * Get a translated string by dot-notation key, optionally substituting
+   * `{paramName}` placeholders (e.g. the `{name}` in
+   * configEditor.activateSuccess) with the given values.
    */
-  public t(key: string): string {
+  public t(key: string, params?: Record<string, string | number>): string {
     const parts = key.split(".");
     let result: any = this.strings;
     for (const part of parts) {
@@ -72,7 +74,17 @@ export class I18nManager {
         return key; // fallback to key
       }
     }
-    return typeof result === "string" ? result : key;
+    if (typeof result !== "string") {
+      return key;
+    }
+    if (!params) {
+      return result;
+    }
+    return result.replace(/\{(\w+)\}/g, (match, name) =>
+      Object.prototype.hasOwnProperty.call(params, name)
+        ? String(params[name])
+        : match,
+    );
   }
 
   public getDictionary(): I18nDictionary {
@@ -82,11 +94,17 @@ export class I18nManager {
   public getLanguage(): string {
     return this.currentLang;
   }
+
+  /** Text direction for the current language, used to set the webview's `dir` attribute. */
+  public getDirection(): "ltr" | "rtl" {
+    const rtlLocales = ["fa", "ar", "he", "ur"];
+    return rtlLocales.includes(this.currentLang) ? "rtl" : "ltr";
+  }
 }
 
 // Convenience function
-export function t(key: string): string {
-  return I18nManager.getInstance().t(key);
+export function t(key: string, params?: Record<string, string | number>): string {
+  return I18nManager.getInstance().t(key, params);
 }
 
 export function getI18nDictionary(): I18nDictionary {

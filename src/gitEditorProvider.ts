@@ -146,14 +146,10 @@ export class GitEditorProvider implements vscode.FileSystemProvider {
         this._uri.toString(),
       );
 
-      vscode.window.showInformationMessage(
-        t(
-          "✏️ Git Editor: Write your commit message. Lines starting with # are comments. Save (Ctrl+S) to update.",
-        ),
-      );
+      vscode.window.showInformationMessage(t("status.gitEditorOpen"));
     } catch (error: any) {
       vscode.window.showErrorMessage(
-        t(`Failed to open Git Editor: ${error.message || error}`),
+        t("status.gitEditorFailed") + (error.message || error),
       );
       this._isOpen = false;
       this._uri = undefined;
@@ -268,7 +264,7 @@ export class GitEditorProvider implements vscode.FileSystemProvider {
       await this.applyToGit();
     } else {
       vscode.window.showInformationMessage(
-        t('Message saved. Use "Apply Git Editor Message" to insert into SCM.'),
+        t("status.gitEditorSaved"),
       );
     }
   }
@@ -321,7 +317,7 @@ export class GitEditorProvider implements vscode.FileSystemProvider {
 
     try {
       if (!this._content || !this._cwd) {
-        vscode.window.showWarningMessage(t("No commit message to apply."));
+        vscode.window.showWarningMessage(t("status.noMessageToApply"));
         return false;
       }
 
@@ -333,12 +329,13 @@ export class GitEditorProvider implements vscode.FileSystemProvider {
         .trim();
 
       if (!cleanMessage) {
+        const continueLabel = t("status.continueEmpty");
         const result = await vscode.window.showWarningMessage(
-          t("Commit message is empty after removing comments."),
-          t("Continue with empty message"),
-          t("Cancel"),
+          t("status.emptyMessageConfirm"),
+          continueLabel,
+          t("status.cancel"),
         );
-        if (result === t("Continue with empty message")) {
+        if (result === continueLabel) {
           return await this.applyCleanMessage("");
         }
         return false;
@@ -356,7 +353,7 @@ export class GitEditorProvider implements vscode.FileSystemProvider {
   private async applyCleanMessage(message: string): Promise<boolean> {
     const gitExt = vscode.extensions.getExtension("vscode.git");
     if (!gitExt?.isActive) {
-      vscode.window.showErrorMessage(t("Git extension not available."));
+      vscode.window.showErrorMessage(t("status.gitExtensionNotAvailable"));
       return false;
     }
 
@@ -366,13 +363,13 @@ export class GitEditorProvider implements vscode.FileSystemProvider {
     );
 
     if (!repo) {
-      vscode.window.showErrorMessage(t("Repository not found."));
+      vscode.window.showErrorMessage(t("status.repositoryNotFound"));
       return false;
     }
 
     repo.inputBox.value = message;
     vscode.window.showInformationMessage(
-      t("✅ Commit message inserted into Source Control."),
+      t("status.insertSuccess"),
     );
 
     // Close the editor after a short delay

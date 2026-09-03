@@ -47,8 +47,7 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:gitCommitMessageEditor.open",
-    "onCommand:gitCommitMessageEditor.openSettings"
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
   "contributes": {

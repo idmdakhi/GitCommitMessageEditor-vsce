@@ -104,6 +104,7 @@
     "bodyEmpty": "Body is empty. Nothing to format.",
     "noBodyField": "No 'body' field found in the current template.",
     "aiDraftApplied": "AI draft applied.",
+    "aiDraftFailed": "AI draft failed.",
     "noCompatibleFields": "Active template has no compatible fields to apply.",
     "noModel": "No language model available. Please install GitHub Copilot Chat and sign in.",
     "noRepo": "No repository found.",
@@ -131,7 +132,10 @@
     "gitEditorOpen": "✏️ Git Editor: Write your commit message. Lines starting with # are comments. Save (Ctrl+S) to update.",
     "gitEditorFailed": "Failed to open Git Editor: ",
     "gitIdentityNotFound": "Git user.name / user.email are not configured for this repository.",
-    "gitIdentityFetched": "Identity fetched from Git config."
+    "gitIdentityFetched": "Identity fetched from Git config.",
+    "gitExtensionNotAvailable": "Git extension not available.",
+    "repositoryNotFound": "Repository not found.",
+    "gitEditorSaved": "Message saved. Use \"Apply Git Editor Message\" to insert into SCM."
   },
 
   "configEditor": {
@@ -157,7 +161,17 @@
     "deleteError": "Built-in templates cannot be deleted. Only templates saved in this repo's .vscode/commit-templates can be removed.",
     "exportSuccess": "Template saved successfully.",
     "importSuccess": "Template “{name}” imported successfully.",
-    "importFailed": "Import failed: "
+    "importFailed": "Import failed: ",
+    "noWorkspaceForSave": "No open repository/workspace — templates are saved into .vscode/commit-templates in the repo, so a workspace folder must be open first.",
+    "saveLabel": "Save template",
+    "importDialogLabel": "Import template",
+    "invalidFileStructure": "Invalid file structure (tokens or template missing).",
+    "nameRequired": "Template name cannot be empty.",
+    "tokenRequired": "At least one token is required.",
+    "templateRequired": "Template structure cannot be empty.",
+    "invalidTokenName": "Token name “{name}” is invalid (English letters/digits only, no spaces).",
+    "duplicateTokenName": "Duplicate token name: {name}",
+    "enumRequiresOptions": "Enum token “{name}” must have at least one option."
   },
 
   "modes": {
@@ -165,10 +179,31 @@
     "freeform": "📝 Free-form"
   },
 
+  "statusBar": {
+    "tooltip": "Open Commit Message Editor"
+  },
+
   "repoInfo": {
     "staged": "staged",
     "noRepo": "no repo",
     "unknown": "unknown",
     "detached": "detached"
+  },
+
+  "validation": {
+    "subjectTooLong": "Subject is longer than {max} characters.",
+    "subjectNoPeriod": "Subject should not end with a period.",
+    "subjectNoCapital": "Subject should not start with a capital letter.",
+    "imperativeMood": "Use imperative mood (add, not added).",
+    "lineTooLong": "One or more lines in “{label}” exceed {max} characters.",
+    "fieldRequired": "Required field “{label}” is empty.",
+    "messageEmpty": "Commit message is empty.",
+    "firstLineTooLong": "First line is longer than {max} characters.",
+    "firstLineNoPeriod": "First line should not end with a period.",
+    "firstLineNoCapital": "First line should not start with a capital letter.",
+    "blankLineRequired": "Leave a blank line between the first line and the body.",
+    "bodyLineTooLong": "One or more lines in the body exceed {max} characters.",
+    "fieldValueRequired": "“{label}” is required.",
+    "exceedsMaxLength": "Exceeds max length ({length}/{max})."
   }
 }

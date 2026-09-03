@@ -155,11 +155,7 @@ export class ConfigManager {
 
   async saveConfig(config: PortableConfig, cwd?: string) {
     if (!cwd) {
-      throw new Error(
-        t(
-          "No open repository/workspace — templates are saved into .vscode/commit-templates in the repo, so a workspace folder must be open first.",
-        ),
-      );
+      throw new Error(t("configEditor.noWorkspaceForSave"));
     }
     const dir = this.workspaceTemplatesDirFor(cwd);
     fs.mkdirSync(dir, { recursive: true });
@@ -192,11 +188,7 @@ export class ConfigManager {
 
   async deleteConfig(name: string, cwd?: string) {
     if (!cwd || !this.isWorkspaceTemplate(name, cwd)) {
-      throw new Error(
-        t(
-          "Built-in templates cannot be deleted. Only templates saved in this repo's .vscode/commit-templates can be removed.",
-        ),
-      );
+      throw new Error(t("configEditor.deleteError"));
     }
     const dir = this.workspaceTemplatesDirFor(cwd);
     const fileName = `${slugifyTemplateName(name)}.json`;
@@ -215,7 +207,7 @@ export class ConfigManager {
   async exportConfig(config: PortableConfig) {
     const uri = await vscode.window.showSaveDialog({
       filters: { JSON: ["json"] },
-      saveLabel: t("Save template"),
+      saveLabel: t("configEditor.saveLabel"),
       defaultUri: vscode.Uri.file(`${slugifyTemplateName(config.name)}.json`),
     });
     if (!uri) {
@@ -223,14 +215,14 @@ export class ConfigManager {
     }
     const bytes = Buffer.from(JSON.stringify(config, null, 2), "utf8");
     await vscode.workspace.fs.writeFile(uri, bytes);
-    vscode.window.showInformationMessage(t("Template saved successfully."));
+    vscode.window.showInformationMessage(t("configEditor.exportSuccess"));
   }
 
   async importConfig(cwd?: string): Promise<PortableConfig | undefined> {
     const uris = await vscode.window.showOpenDialog({
       filters: { JSON: ["json"] },
       canSelectMany: false,
-      openLabel: t("Import template"),
+      openLabel: t("configEditor.importDialogLabel"),
     });
     if (!uris || uris.length === 0) {
       return undefined;
@@ -240,17 +232,17 @@ export class ConfigManager {
     try {
       const parsed = JSON.parse(text) as PortableConfig;
       if (!parsed.tokens || !parsed.template) {
-        throw new Error(
-          t("Invalid file structure (tokens or template missing)."),
-        );
+        throw new Error(t("configEditor.invalidFileStructure"));
       }
       await this.saveConfig(parsed, cwd);
       vscode.window.showInformationMessage(
-        t(`Template “${parsed.name}” imported successfully.`),
+        t("configEditor.importSuccess", { name: parsed.name }),
       );
       return parsed;
     } catch (e: any) {
-      vscode.window.showErrorMessage(t(`Import failed: ${e.message ?? e}`));
+      vscode.window.showErrorMessage(
+        t("configEditor.importFailed") + (e.message ?? e),
+      );
       return undefined;
     }
   }

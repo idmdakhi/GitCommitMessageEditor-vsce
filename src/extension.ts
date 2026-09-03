@@ -14,7 +14,7 @@ function createStatusBar() {
     90,
   );
   item.text = "$(edit) Commit Msg";
-  item.tooltip = t("Open Commit Message Editor");
+  item.tooltip = t("statusBar.tooltip");
   item.command = "gitCommitMessageEditor.open";
   item.show();
   return item;
@@ -178,12 +178,12 @@ export function activate(context: vscode.ExtensionContext) {
       async () => {
         const gitExt = vscode.extensions.getExtension("vscode.git");
         if (!gitExt) {
-          vscode.window.showErrorMessage(t("Git extension not available."));
+          vscode.window.showErrorMessage(t("status.gitExtensionNotAvailable"));
           return;
         }
         const gitApi = gitExt.exports.getAPI(1);
         if (!gitApi.repositories || gitApi.repositories.length === 0) {
-          vscode.window.showErrorMessage(t("No Git repository found."));
+          vscode.window.showErrorMessage(t("status.noGitRepo"));
           return;
         }
 
