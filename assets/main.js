@@ -16,6 +16,12 @@
   let configSource = "";
   let hasProjectConfig = false;
 
+  // ===== Free‑form tab (Phase 2 todo: dedicated tab with a large textarea) =====
+  // "form"      — the structured, token-based form (existing behaviour)
+  // "freeform"  — a single large textarea; buildMessage() returns this text verbatim
+  let editorMode = "form";
+  let freeformText = "";
+
   // If enabled, selecting any Type will automatically set the corresponding emoji in Gitmoji (default: enabled)
   let autoGitmoji = true;
 
@@ -62,19 +68,19 @@
       case "autoSuggestions":
         pendingActions.autoSuggest = false;
         applyAutoSuggestions(msg.suggestions || {});
-        hideSpinner("btn-autofill", "⚡ Suggestions");
+        hideSpinner("btn-autofill", t("toolbar.suggestions"));
         break;
 
       case "aiDraftResult":
         pendingActions.aiDraft = false;
         applyAiDraft(msg.draft || {});
-        hideSpinner("btn-ai", "✨ AI Draft");
+        hideSpinner("btn-ai", t("moreMenu.aiDraft"));
         break;
 
       case "aiDraftError":
         pendingActions.aiDraft = false;
-        showAiStatus(msg.message || "AI draft failed.", true);
-        hideSpinner("btn-ai", "✨ AI Draft");
+        showAiStatus(msg.message || t("status.aiDraftFailed"), true);
+        hideSpinner("btn-ai", t("moreMenu.aiDraft"));
         break;
 
       case "loadRawMessage":
@@ -85,18 +91,47 @@
         applyGitIdentityToSignedOffBy(msg.value || "", msg.message || "");
         break;
 
+      case "openAsGitEditor":
+        vscode.commands.executeCommand(
+          "gitCommitMessageEditor.openAsGitEditor",
+        );
+        break;
+
+      case "openSettings":
+        vscode.commands.executeCommand("gitCommitMessageEditor.openSettings");
+        break;
+
       default:
         break;
     }
   }
 
+  function t(key, params) {
+    const parts = key.split(".");
+    let result = i18n;
+    for (const part of parts) {
+      if (result && typeof result === "object" && result[part] !== undefined) {
+        result = result[part];
+      } else {
+        return key;
+      }
+    }
+    if (typeof result !== "string") return key;
+    if (!params) return result;
+    return result.replace(/\{(\w+)\}/g, (match, name) =>
+      Object.prototype.hasOwnProperty.call(params, name)
+        ? String(params[name])
+        : match,
+    );
+  }
+
   function initializeState(msg) {
     config = msg.config || null;
-
+    const defaultEditorMode = msg.defaultEditorMode || "form";
     activeConfigName = msg.activeConfigName || config?.name || "";
-
     configSource = msg.configSource || "";
     hasProjectConfig = !!msg.hasProjectConfig;
+    i18n = msg.i18n || {};
 
     settings = {
       ...msg.settings,
@@ -106,8 +141,25 @@
         msg.settings?.autoGitmoji !== undefined
           ? msg.settings.autoGitmoji
           : true,
+      rememberFrequentTypes:
+        msg.settings?.rememberFrequentTypes !== undefined
+          ? msg.settings.rememberFrequentTypes
+          : true,
+      rememberFrequentScopes:
+        msg.settings?.rememberFrequentScopes !== undefined
+          ? msg.settings.rememberFrequentScopes
+          : true,
+      frequentTypes: Array.isArray(msg.settings?.frequentTypes)
+        ? msg.settings.frequentTypes
+        : [],
+      frequentScopes: Array.isArray(msg.settings?.frequentScopes)
+        ? msg.settings.frequentScopes
+        : [],
     };
 
+    if (msg.settings?.emojiPrefix) {
+      settings.autoGitmoji = true;
+    }
     recentCommits = Array.isArray(msg.recentCommits) ? msg.recentCommits : [];
 
     if (msg.draft) {
@@ -117,10 +169,22 @@
         typeof msg.draft.autoGitmoji === "boolean"
           ? msg.draft.autoGitmoji
           : true;
+      editorMode = msg.draft.editorMode === "freeform" ? "freeform" : "form";
+      freeformText =
+        typeof msg.draft.freeformText === "string"
+          ? msg.draft.freeformText
+          : "";
+      if (!msg.draft.editorMode) {
+        editorMode = defaultEditorMode === "freeform" ? "freeform" : "form";
+      }
     } else {
       values = {};
       conditionalEnabled = {};
       autoGitmoji = settings.autoGitmoji;
+      editorMode = "form";
+      freeformText = "";
+      editorMode = defaultEditorMode === "freeform" ? "freeform" : "form";
+      freeformText = "";
     }
 
     updateRepoState(msg.repoInfo || {});
@@ -220,17 +284,134 @@
         values,
         conditionalEnabled,
         autoGitmoji,
+        editorMode,
+        freeformText,
       },
     });
   }
 
+  // ===== NEW: Issue processing with keyword detection =====
+  /**
+   * پردازش لیست ارجاع‌های Issue/PR با پشتیبانی از فرمت‌های گیت‌هاب:
+   *   - #123
+   *   - GH-123
+   *   - owner/repo#123
+   *   - organization/repository#123
+   *   - ترکیب موارد فوق با جداکننده‌های کاما یا فاصله
+   */
   function issueList(raw) {
     return String(raw || "")
       .split(/[,\s]+/)
       .map((item) => item.trim())
       .filter(Boolean)
-      .map((item) => (item.startsWith("#") ? item : `#${item}`))
+      .map((item) => {
+        // اگر شامل '#' باشد، همان را برگردان
+        if (item.includes("#")) {
+          return item;
+        }
+        // در غیر این صورت '#' را به ابتدا اضافه کن
+        return `#${item}`;
+      })
       .join(", ");
+  }
+
+  /**
+   * پردازش کامل یک فیلد Issue با پشتیبانی از چندین کلمه کلیدی مجزا
+   * @param {string} raw - ورودی خام کاربر
+   * @param {string} defaultPrefix - prefix پیش‌فرض از توکن (در صورت عدم وجود کلمه کلیدی)
+   * @returns {string} - خروجی پردازش‌شده
+   */
+  function processIssueField(raw, defaultPrefix) {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      return "";
+    }
+
+    const keywords = [
+      "close",
+      "closes",
+      "closed",
+      "fix",
+      "fixes",
+      "fixed",
+      "resolve",
+      "resolves",
+      "resolved",
+    ];
+
+    // تقسیم بر اساس کاما یا نقطه‌ویرگول (با رعایت فاصله)
+    const parts = trimmed.split(/[;,]\s*/).filter(Boolean);
+
+    // اگر فقط یک بخش وجود دارد، پردازش ساده (برای سازگاری با حالت تک‌کلمه‌ای)
+    if (parts.length === 1) {
+      const part = parts[0].trim();
+      const lower = part.toLowerCase();
+      let keyword = null;
+      let rest = part;
+
+      for (const kw of keywords) {
+        if (lower.startsWith(kw) && /^[:,\s]/.test(part.slice(kw.length))) {
+          keyword = part.slice(0, kw.length);
+          rest = part
+            .slice(kw.length)
+            .replace(/^[:,\s]+/, "")
+            .trim();
+          break;
+        }
+      }
+
+      const processedIssues = issueList(rest);
+      if (!processedIssues) {
+        return "";
+      }
+
+      // اگر کلمه کلیدی پیدا شد، از آن استفاده کن، در غیر این صورت از defaultPrefix
+      if (keyword) {
+        return `${keyword}: ${processedIssues}`;
+      } else if (defaultPrefix) {
+        return `${defaultPrefix}${processedIssues}`;
+      } else {
+        return processedIssues;
+      }
+    }
+
+    // چند بخش: هر بخش را جداگانه پردازش کن
+    const results = [];
+    for (let part of parts) {
+      part = part.trim();
+      if (!part) continue;
+
+      const lower = part.toLowerCase();
+      let keyword = null;
+      let rest = part;
+
+      for (const kw of keywords) {
+        if (lower.startsWith(kw) && /^[:,\s]/.test(part.slice(kw.length))) {
+          keyword = part.slice(0, kw.length);
+          rest = part
+            .slice(kw.length)
+            .replace(/^[:,\s]+/, "")
+            .trim();
+          break;
+        }
+      }
+
+      const processedIssues = issueList(rest);
+      if (!processedIssues) {
+        continue;
+      }
+
+      if (keyword) {
+        results.push(`${keyword}: ${processedIssues}`);
+      } else if (defaultPrefix) {
+        // اگر کلمه کلیدی در این بخش نبود، از defaultPrefix استفاده کن
+        results.push(`${defaultPrefix}${processedIssues}`);
+      } else {
+        results.push(processedIssues);
+      }
+    }
+
+    return results.join(", ");
   }
 
   // ===== Suggestions / AI =====
@@ -272,14 +453,11 @@
 
     if (gitIdentityBtn) {
       gitIdentityBtn.disabled = false;
-      gitIdentityBtn.textContent = "⇩ Git";
+      gitIdentityBtn.textContent = t("form.fetchGitIdentity");
     }
 
     if (!value) {
-      showAiStatus(
-        errorMessage || "Could not read user.name/user.email from Git config.",
-        true,
-      );
+      showAiStatus(errorMessage || t("status.gitIdentityNotFound"), true);
       return;
     }
 
@@ -324,50 +502,55 @@
     render();
 
     showAiStatus(
-      changed
-        ? "AI draft applied."
-        : "Active template has no compatible fields to apply.",
+      changed ? t("status.aiDraftApplied") : t("status.noCompatibleFields"),
       !changed,
     );
   }
 
+  // ===== NEW: loadRawIntoSubjectBody with support for multiple keywords =====
   function loadRawIntoSubjectBody(raw) {
+    // اگر تب Free‑form فعال است، متن خام مستقیماً در همان Textarea قرار
+    // می‌گیرد؛ تجزیه به فیلدهای فرم بی‌فایده است چون فرم در حال حاضر نمایش
+    // داده نمی‌شود.
+    if (editorMode === "freeform") {
+      freeformText = String(raw || "");
+      saveDraft();
+      render();
+      return;
+    }
+
     if (!findToken("subject")) return;
 
     const lines = String(raw || "").split("\n");
-
     let header = lines[0] || "";
 
-    // If the first line starts with an emoji (e.g. '✨ feat: ...'), extract it and put it in Gitmoji
+    // استخراج Gitmoji از ابتدای خط اول (اگر وجود داشته باشد)
     const emojiMatch = header.match(/^(\p{Extended_Pictographic}\uFE0F?)\s+/u);
-
     if (emojiMatch && findToken("gitmoji")) {
       values.gitmoji = emojiMatch[1];
       conditionalEnabled.gitmoji = true;
       header = header.slice(emojiMatch[0].length);
     }
 
+    // تشخیص Conventional Commits: type(scope): subject
     const match = header.match(/^([a-z]+)(\(([^)]+)\))?:\s*(.*)$/i);
-
     if (match && findToken("type")) {
       values.type = match[1];
-
       if (findToken("scope")) {
         values.scope = match[3] || "";
-
         if (values.scope) {
           conditionalEnabled.scope = true;
         }
       }
-
       values.subject = match[4] || "";
     } else {
       values.subject = header;
     }
 
-    // Separate the remaining lines (body + issue references + trailers): lines that start with a known field prefix (e.g. 'Signed-off-by: ', 'Closes: ', etc.) go into that field — not Body
+    // پردازش خطوط باقی‌مانده (بدنه، ارجاع‌ها، و trailerها)
     const restLines = lines.slice(1);
 
+    // لیست توکن‌هایی که دارای prefix هستند (به جز type, subject, scope)
     const prefixTokens = (config.tokens || [])
       .filter(
         (token) =>
@@ -385,6 +568,7 @@
     restLines.forEach((line) => {
       const trimmedStart = line.replace(/^\s+/, "");
 
+      // پیدا کردن اولین token که با خط شروع می‌شود
       const matchedToken = prefixTokens.find((token) =>
         trimmedStart.startsWith(token.prefix),
       );
@@ -397,65 +581,69 @@
           trailerChunks[currentTrailerName] = [];
         }
 
-        trailerChunks[currentTrailerName].push(
-          trimmedStart.slice(matchedToken.prefix.length).trim(),
-        );
-
+        // مقدار را بدون prefix ذخیره می‌کنیم
+        const valueWithoutPrefix = trimmedStart
+          .slice(matchedToken.prefix.length)
+          .trim();
+        trailerChunks[currentTrailerName].push(valueWithoutPrefix);
         return;
       }
 
       if (inTrailerBlock) {
         if (line.trim() === "") return; // خط خالی داخل بلوک trailer نادیده گرفته می‌شود
-
-        // ادامه‌ی خط trailer قبلی (مثلاً پاراگراف چندخطی BREAKING CHANGE)
+        // ادامه‌ی خط قبلی (مثلاً پاراگراف چندخطی BREAKING CHANGE)
         if (currentTrailerName && trailerChunks[currentTrailerName]?.length) {
           const idx = trailerChunks[currentTrailerName].length - 1;
-
           trailerChunks[currentTrailerName][idx] += ` ${line.trim()}`;
         }
-
         return;
       }
 
+      // خطوط باقی‌مانده به بدنه اضافه می‌شوند
       bodyLines.push(line);
     });
 
+    // اعمال مقادیر استخراج‌شده به فیلدهای مربوطه
     Object.keys(trailerChunks).forEach((name) => {
       const token = findToken(name);
-
       if (!token) return;
 
       const occurrences = trailerChunks[name].filter((v) => v !== "");
-
       if (!occurrences.length) return;
 
-      values[name] = token.perLine
-        ? occurrences.join("\n")
-        : occurrences.join(", ");
+      // برای فیلدهای issueList، کل مقدار را به‌عنوان یک رشته نگه می‌داریم
+      // (چون ممکن است چندین کلمه کلیدی داشته باشد)
+      if (token.issueList) {
+        // پیوستن تمام بخش‌ها با کاما و فاصله (همانند ورودی کاربر)
+        values[name] = occurrences.join(", ");
+      } else {
+        values[name] = token.perLine
+          ? occurrences.join("\n")
+          : occurrences.join(", ");
+      }
 
       conditionalEnabled[name] = true;
     });
 
+    // بدنه
     if (findToken("body")) {
       const bodyText = bodyLines.join("\n").trim();
-
       values.body = bodyText;
       conditionalEnabled.body = !!bodyText;
     }
 
     ensureEnabledForFilledOptionals();
-
     saveDraft();
     render();
   }
 
   // Template Engine
 
+  // ===== NEW: computeTokenOutput with processIssueField =====
   function computeTokenOutput(token) {
     if (!token) return "";
 
     // اگر «Auto Gitmoji» غیرفعال است، Gitmoji در پیام نهایی درج نمی‌شود
-    // (حتی اگر قبلاً مقداری برایش ثبت شده باشد)
     if (token.name === "gitmoji" && !autoGitmoji) {
       return "";
     }
@@ -478,8 +666,14 @@
       return "";
     }
 
+    // ===== پردازش ویژه برای فیلدهای issueList =====
     if (token.issueList) {
-      return (token.prefix || "") + issueList(raw) + (token.suffix || "");
+      const defaultPrefix = token.prefix || "";
+      const result = processIssueField(raw, defaultPrefix);
+      if (!result) {
+        return "";
+      }
+      return result + (token.suffix || "");
     }
 
     if (token.perLine) {
@@ -503,6 +697,10 @@
   }
 
   function buildMessage() {
+    if (editorMode === "freeform") {
+      return trimStrayBlankLines(freeformText);
+    }
+
     if (!config?.template) {
       return "";
     }
@@ -543,9 +741,101 @@
     return output.join("\n");
   }
 
+  // ===== Auto-format Body =====
+  function formatBody() {
+    const token = findToken("body");
+    if (!token) {
+      showAiStatus(t("status.noBodyField"), true);
+      return;
+    }
+
+    const raw = fieldValue("body");
+    if (!raw.trim()) {
+      showAiStatus(t("status.bodyEmpty"), true);
+      return;
+    }
+
+    const maxLen = settings.maxLineLength || 100;
+
+    // پاراگراف‌ها را بر اساس خطوط خالی جدا می‌کنیم
+    const paragraphs = raw.split(/\n\s*\n/).filter((p) => p.trim().length > 0);
+
+    const formattedParagraphs = paragraphs.map((p) => {
+      const words = p.split(/\s+/).filter((w) => w.length > 0);
+      const lines = [];
+      let currentLine = [];
+      let currentLength = 0;
+
+      for (const word of words) {
+        if (word.length > maxLen) {
+          if (currentLine.length > 0) {
+            lines.push(currentLine.join(" "));
+            currentLine = [];
+            currentLength = 0;
+          }
+          lines.push(word);
+          continue;
+        }
+
+        const space = currentLine.length > 0 ? 1 : 0;
+        if (currentLength + space + word.length <= maxLen) {
+          currentLine.push(word);
+          currentLength += space + word.length;
+        } else {
+          lines.push(currentLine.join(" "));
+          currentLine = [word];
+          currentLength = word.length;
+        }
+      }
+      if (currentLine.length > 0) {
+        lines.push(currentLine.join(" "));
+      }
+      return lines.join("\n");
+    });
+
+    const newBody = formattedParagraphs.join("\n\n");
+
+    values.body = newBody;
+    if (isCollapsible(token)) {
+      conditionalEnabled.body = true;
+    }
+
+    saveDraft();
+    render();
+    showAiStatus(t("status.bodyFormatted"), false);
+  }
+
+  // یک پیام آزاد را برای درج نهایی آماده می‌کند: خطوط خالی ابتدای پیام
+  // (که هرگز بخشی از subject نیستند) و فاصله‌ی خالی انتهای پیام حذف
+  // می‌شوند؛ خطوط خالی داخل پیام (مثلاً بین پاراگراف‌های body) دست‌نخورده
+  // باقی می‌مانند چون کاربر آگاهانه آن‌ها را نوشته است.
+  function trimStrayBlankLines(text) {
+    const lines = String(text || "").split("\n");
+
+    while (lines.length && lines[0].trim() === "") {
+      lines.shift();
+    }
+
+    while (lines.length && lines[lines.length - 1].trim() === "") {
+      lines.pop();
+    }
+
+    if (lines.length) {
+      // Leading spaces/tabs on the subject line itself (as opposed to a
+      // blank line before it) are almost certainly accidental.
+      lines[0] = lines[0].replace(/^[ \t]+/, "");
+    }
+
+    return lines.join("\n");
+  }
+
   // Validation
 
   function computeWarnings() {
+    if (editorMode === "freeform") {
+      return computeFreeformWarnings();
+    }
+
     if (!config?.tokens) return [];
 
     const warnings = [];
@@ -561,21 +851,21 @@
       if (subject.length > maxSubject) {
         warnings.push({
           field: "subject",
-          message: `Subject is longer than ${maxSubject} characters.`,
+          message: t("validation.subjectTooLong", { max: maxSubject }),
         });
       }
 
       if (/[.]\s*$/.test(subject.trim())) {
         warnings.push({
           field: "subject",
-          message: "Subject should not end with a period.",
+          message: t("validation.subjectNoPeriod"),
         });
       }
 
       if (subject.trim() && /^[A-Z]/.test(subject.trim())) {
         warnings.push({
           field: "subject",
-          message: "Subject should not start with a capital letter.",
+          message: t("validation.subjectNoCapital"),
         });
       }
 
@@ -586,7 +876,7 @@
       ) {
         warnings.push({
           field: "subject",
-          message: "Use imperative mood (add, not added).",
+          message: t("validation.imperativeMood"),
         });
       }
     }
@@ -603,9 +893,10 @@
       ) {
         warnings.push({
           field: token.name,
-          message:
-            `One or more lines in “${token.label}” exceed ` +
-            `${token.maxLineLength} characters.`,
+          message: t("validation.lineTooLong", {
+            label: token.label,
+            max: token.maxLineLength,
+          }),
         });
       }
 
@@ -616,10 +907,82 @@
         if (!hasValue) {
           warnings.push({
             field: token.name,
-            message: `Required field “${token.label}” is empty.`,
+            message: t("validation.fieldRequired", { label: token.label }),
           });
         }
       }
+    }
+
+    return warnings;
+  }
+
+  // همان قراردادهای Git 50/72 که برای فیلد subject در حالت فرم چک می‌شوند
+  // (طول، بدون نقطه‌ی پایانی، بدون حرف بزرگ ابتدایی، حالت امری) روی خط
+  // اول پیام آزاد هم اعمال می‌شوند؛ به‌علاوه یک هشدار برای طول خطوط body و
+  // فاصله‌ی خالی میان subject و body.
+  function computeFreeformWarnings() {
+    const text = freeformText || "";
+
+    if (!text.trim()) {
+      return [
+        {
+          field: "freeform-message",
+          message: t("validation.messageEmpty"),
+        },
+      ];
+    }
+
+    const warnings = [];
+    const lines = text.split("\n");
+    const subject = lines[0] || "";
+    const maxSubject = settings.maxSubjectLength || 72;
+
+    if (subject.length > maxSubject) {
+      warnings.push({
+        field: "freeform-message",
+        message: t("validation.firstLineTooLong", { max: maxSubject }),
+      });
+    }
+
+    if (/[.]\s*$/.test(subject.trim())) {
+      warnings.push({
+        field: "freeform-message",
+        message: t("validation.firstLineNoPeriod"),
+      });
+    }
+
+    if (subject.trim() && /^[A-Z]/.test(subject.trim())) {
+      warnings.push({
+        field: "freeform-message",
+        message: t("validation.firstLineNoCapital"),
+      });
+    }
+
+    if (
+      /^(added|fixed|changed|removed|updated|created|deleted)\b/i.test(
+        subject.trim(),
+      )
+    ) {
+      warnings.push({
+        field: "freeform-message",
+        message: t("validation.imperativeMood"),
+      });
+    }
+
+    if (lines.length > 1 && lines[1].trim() !== "") {
+      warnings.push({
+        field: "freeform-message",
+        message: t("validation.blankLineRequired"),
+      });
+    }
+
+    const maxLine = settings.maxLineLength || 100;
+
+    if (lines.slice(2).some((line) => line.length > maxLine)) {
+      warnings.push({
+        field: "freeform-message",
+        message: t("validation.bodyLineTooLong", { max: maxLine }),
+      });
     }
 
     return warnings;
@@ -647,7 +1010,7 @@
 
       if (!value) {
         valid = false;
-        message = `“${token.label}” is required.`;
+        message = t("validation.fieldValueRequired", { label: token.label });
       }
     }
 
@@ -657,7 +1020,10 @@
       if (length > token.maxLength) {
         valid = false;
 
-        message = `Exceeds max length (${length}/${token.maxLength}).`;
+        message = t("validation.exceedsMaxLength", {
+          length,
+          max: token.maxLength,
+        });
       }
     }
 
@@ -667,17 +1033,17 @@
       if (subject) {
         if (/[.]\s*$/.test(subject)) {
           valid = false;
-          message = "Subject should not end with a period.";
+          message = t("validation.subjectNoPeriod");
         } else if (/^[A-Z]/.test(subject)) {
           valid = false;
-          message = "Subject should not start with a capital letter.";
+          message = t("validation.subjectNoCapital");
         } else if (
           /^(added|fixed|changed|removed|updated|created|deleted)\b/i.test(
             subject,
           )
         ) {
           valid = false;
-          message = "Use imperative mood (add, not added).";
+          message = t("validation.imperativeMood");
         }
       }
     }
@@ -705,11 +1071,9 @@
 
   function showAiStatus(text, isError = false) {
     const element = document.getElementById("ai-status");
-
     if (!element) return;
-
-    element.textContent = text;
-
+    const translated = t(text) !== text ? t(text) : text;
+    element.textContent = translated;
     element.className = `ai-status${isError ? " error" : ""}`;
   }
 
@@ -815,51 +1179,56 @@
     const primaryButtons = [
       {
         id: "btn-insert",
-        label: "Insert",
+        label: t("toolbar.insert"),
         cls: "primary",
       },
       {
         id: "btn-copy",
-        label: "Copy",
+        label: t("toolbar.copy"),
         cls: "secondary",
       },
       {
         id: "btn-reset",
-        label: "Reset",
+        label: t("toolbar.reset"),
         cls: "secondary",
       },
       {
         id: "btn-autofill",
-        label: "⚡ Suggestions",
+        label: t("toolbar.suggestions"),
         cls: "secondary",
+      },
+      {
+        id: "btn-giteditor",
+        label: t("toolbar.gitEditor"),
       },
     ];
 
     const moreButtons = [
       {
         id: "btn-ai",
-        label: "✨ AI Draft",
-      },
-      {
-        id: "btn-config",
-        label: "⚙ Template",
-      },
-      {
-        id: "btn-git-template",
-        label: "📌 Git Template",
+        label: t("moreMenu.aiDraft"),
       },
       {
         id: "btn-amend",
-        label: "🔄 Amend Last",
+        label: t("moreMenu.amendLast"),
       },
       {
         id: "btn-undo",
-        label: "↩️ Undo Insert",
+        label: t("moreMenu.undoInsert"),
       },
       {
-        id: "btn-project-config",
-        label: "📁 Repo Config",
+        id: "btn-gittemplate",
+        label: t("moreMenu.gitTemplate"),
       },
+      {
+        id: "btn-config",
+        label: t("moreMenu.templateConfig"),
+      },
+      {
+        id: "btn-projectconfig",
+        label: t("moreMenu.repoConfig"),
+      },
+      { id: "btn-settings", label: t("moreMenu.settings") },
     ];
 
     return `
@@ -906,6 +1275,68 @@
         </div>
       </div>
     `;
+  }
+
+  // Form / Free-form tab switcher — sits above #form so only the input
+  // side changes; the live preview on the right works the same either way
+  // since buildMessage() already branches on editorMode.
+  function renderModeTabs() {
+    return `
+      <div
+        class="editor-mode-tabs"
+        id="editor-mode-tabs"
+        role="tablist"
+        aria-label="Message editor mode"
+      >
+        <button
+          type="button"
+          class="mode-tab${editorMode === "form" ? " active" : ""}"
+          data-mode="form"
+          role="tab"
+          aria-selected="${editorMode === "form"}"
+        >
+          🧩 Form
+        </button>
+
+        <button
+          type="button"
+          class="mode-tab${editorMode === "freeform" ? " active" : ""}"
+          data-mode="freeform"
+          role="tab"
+          aria-selected="${editorMode === "freeform"}"
+        >
+          📝 Free-form
+        </button>
+      </div>
+    `;
+  }
+
+  function bindModeTabs() {
+    document.querySelectorAll(".mode-tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const nextMode = tab.dataset.mode;
+
+        if (!nextMode || nextMode === editorMode) return;
+
+        // اولین بار که کاربر به تب Free‑form می‌رود، اگر متن آزاد هنوز
+        // خالی است، پیامی که تا این لحظه از فرم ساخته شده به‌عنوان نقطه‌ی
+        // شروع در Textarea قرار می‌گیرد (به‌جای شروع از صفحه‌ی کاملاً
+        // خالی) — این کار قبل از عوض‌شدن editorMode انجام می‌شود چون
+        // buildMessage() هنوز در حالت "form" پیام را می‌سازد.
+        if (nextMode === "freeform" && !freeformText.trim()) {
+          const assembled = buildMessage();
+
+          if (assembled.trim()) {
+            freeformText = assembled;
+          }
+        }
+
+        editorMode = nextMode;
+
+        saveDraft();
+        render();
+      });
+    });
   }
 
   function showSpinner(buttonId) {
@@ -977,19 +1408,14 @@
             ></span>
           </div>
 
-          ${
-            warnings.length
-              ? `
-                <div
-                  class="warnings"
-                  id="warnings-line"
-                >
-                  ⚠ ${warnings.length}
-                  warning${warnings.length > 1 ? "s" : ""} — click to jump
-                </div>
-              `
-              : ""
-          }
+          <div
+            class="warnings"
+            id="warnings-line"
+            style="${warnings.length ? "" : "display:none;"}"
+          >
+            ⚠ <span id="warnings-count">${warnings.length}</span>
+            warning<span id="warnings-plural">${warnings.length > 1 ? "s" : ""}</span> — click to jump
+          </div>
         </div>
 
         <div class="header-block">
@@ -1029,6 +1455,7 @@
 
         <div class="workspace">
           <div class="workspace-form">
+            ${renderModeTabs()}
             <div id="form"></div>
           </div>
 
@@ -1090,6 +1517,7 @@
       renderRecentCommits();
     }
 
+    bindModeTabs();
     bindToolbar();
     bindCollapsibles();
 
@@ -1115,44 +1543,61 @@
     let filled = 0;
     let totalVisible = 0;
 
-    row.innerHTML = config.tokens
-      .map((token) => {
-        const enabled = isFieldEnabled(token);
+    if (editorMode === "freeform") {
+      const hasValue = !!freeformText.trim();
 
-        if (!token.required && !enabled && token.type !== "boolean") {
-          return "";
-        }
+      row.innerHTML = `
+        <span
+          class="chip ${hasValue ? "ok" : "warn"}"
+          data-field="freeform-message"
+        >
+          Message
+        </span>
+      `;
 
-        totalVisible++;
+      progressElement.textContent = hasValue
+        ? "Free-form message"
+        : "Free-form message — empty";
+    } else {
+      row.innerHTML = config.tokens
+        .map((token) => {
+          const enabled = isFieldEnabled(token);
 
-        const hasValue =
-          token.type === "boolean"
-            ? !!values[token.name]
-            : enabled && fieldValue(token.name).trim() !== "";
+          if (!token.required && !enabled && token.type !== "boolean") {
+            return "";
+          }
 
-        let className = "empty";
+          totalVisible++;
 
-        if (hasValue) {
-          className = "ok";
-          filled++;
-        } else if (token.required) {
-          className = "warn";
-        }
+          const hasValue =
+            token.type === "boolean"
+              ? !!values[token.name]
+              : enabled && fieldValue(token.name).trim() !== "";
 
-        return `
-          <span
-            class="chip ${className}"
-            data-field="${escapeAttr(token.name)}"
-          >
-            ${escapeHtml(token.label)}
-          </span>
-        `;
-      })
-      .join("");
+          let className = "empty";
 
-    progressElement.textContent = `${filled} of ${
-      totalVisible || config.tokens.length
-    } sections`;
+          if (hasValue) {
+            className = "ok";
+            filled++;
+          } else if (token.required) {
+            className = "warn";
+          }
+
+          return `
+            <span
+              class="chip ${className}"
+              data-field="${escapeAttr(token.name)}"
+            >
+              ${escapeHtml(token.label)}
+            </span>
+          `;
+        })
+        .join("");
+
+      progressElement.textContent = `${filled} of ${
+        totalVisible || config.tokens.length
+      } sections`;
+    }
 
     row.querySelectorAll(".chip").forEach((chip) => {
       chip.addEventListener("click", () => {
@@ -1179,39 +1624,135 @@
 
     const warningLine = document.getElementById("warnings-line");
 
-    if (warningLine && warnings.length) {
-      warningLine.title = warnings.map((warning) => warning.message).join("\n");
+    if (warningLine) {
+      if (warnings.length) {
+        warningLine.style.display = "";
+        warningLine.title = warnings
+          .map((warning) => warning.message)
+          .join("\n");
 
-      warningLine.addEventListener("click", () => {
-        const firstWarning = warnings[0];
+        const countEl = document.getElementById("warnings-count");
+        const pluralEl = document.getElementById("warnings-plural");
 
-        if (!firstWarning) return;
+        if (countEl) countEl.textContent = String(warnings.length);
+        if (pluralEl) pluralEl.textContent = warnings.length > 1 ? "s" : "";
 
-        const token = findToken(firstWarning.field);
+        // از onclick= (به‌جای addEventListener) استفاده می‌شود چون این
+        // عنصر برخلاف چیپ‌ها در هر keystroke دوباره ساخته نمی‌شود؛
+        // addEventListener هر بار یک لیسنر جدید اضافه می‌کرد (نشتی حافظه
+        // و فراخوانی چندباره‌ی هندلر با هر کلیک).
+        warningLine.onclick = () => {
+          const firstWarning = warnings[0];
 
-        if (token && isCollapsible(token) && !conditionalEnabled[token.name]) {
-          conditionalEnabled[token.name] = true;
+          if (!firstWarning) return;
 
-          saveDraft();
-          render();
+          if (editorMode === "freeform") {
+            document.getElementById(`f-${firstWarning.field}`)?.focus();
+            return;
+          }
 
-          requestAnimationFrame(() => {
-            document.getElementById(`f-${token.name}`)?.focus();
-          });
+          const token = findToken(firstWarning.field);
 
-          return;
-        }
+          if (
+            token &&
+            isCollapsible(token) &&
+            !conditionalEnabled[token.name]
+          ) {
+            conditionalEnabled[token.name] = true;
 
-        document.getElementById(`f-${firstWarning.field}`)?.focus();
-      });
+            saveDraft();
+            render();
+
+            requestAnimationFrame(() => {
+              document.getElementById(`f-${token.name}`)?.focus();
+            });
+
+            return;
+          }
+
+          document.getElementById(`f-${firstWarning.field}`)?.focus();
+        };
+      } else {
+        warningLine.style.display = "none";
+        warningLine.onclick = null;
+      }
     }
   }
 
   // Form
 
+  // Free-form tab: one large textarea, no fields, no template — the raw
+  // text becomes the commit message verbatim (see buildMessage()).
+  function freeformCounterText() {
+    const lines = freeformText ? freeformText.split("\n") : [];
+    const lineCount = freeformText ? lines.length : 0;
+    const charCount = freeformText.length;
+
+    return `${lineCount} line${lineCount === 1 ? "" : "s"} · ${charCount} char${
+      charCount === 1 ? "" : "s"
+    }`;
+  }
+
+  function renderFreeformForm(formElement) {
+    formElement.innerHTML = `
+      <div class="field freeform-field">
+        <div class="field-head">
+          <label for="f-freeform-message">
+            Commit message
+          </label>
+        </div>
+
+        <div class="desc">
+          Write the full commit message exactly as it should be committed —
+          no fields, no template, just text. The first line is the subject;
+          leave a blank line before the body.
+        </div>
+
+        <textarea
+          id="f-freeform-message"
+          class="freeform-textarea monospace"
+          placeholder="feat(scope): subject&#10;&#10;Body of the commit message..."
+          spellcheck="true"
+        >${escapeHtml(freeformText)}</textarea>
+
+        <div
+          class="counter"
+          id="freeform-counter"
+        >
+          ${freeformCounterText()}
+        </div>
+      </div>
+    `;
+
+    bindFreeformField();
+  }
+
+  function bindFreeformField() {
+    const element = document.getElementById("f-freeform-message");
+    if (!element) return;
+
+    element.addEventListener("input", () => {
+      freeformText = element.value;
+
+      saveDraft();
+      updatePreviewAndChips();
+
+      const counter = document.getElementById("freeform-counter");
+      if (counter) {
+        counter.textContent = freeformCounterText();
+      }
+    });
+  }
+
   function renderForm() {
     const formElement = document.getElementById("form");
     if (!formElement) return;
+
+    if (editorMode === "freeform") {
+      renderFreeformForm(formElement);
+      return;
+    }
+
     const hasTypeToken = config.tokens.some((t) => t.name === "type");
 
     const core = [];
@@ -1400,6 +1941,8 @@
 
   function renderField(token) {
     const requiredMark = token.required ? " *" : "";
+    const labelKey = `form.${token.name}Label`;
+    const label = t(labelKey) !== labelKey ? t(labelKey) : token.label;
 
     const description = token.description
       ? `
@@ -1432,28 +1975,110 @@
       `;
     }
 
-    return `
-      <div class="field">
-        <div class="field-head">
-          <label
-            for="f-${escapeAttr(token.name)}"
-          >
-            ${escapeHtml(token.label)}
-            ${requiredMark}
-          </label>
-
-          ${token.name === "type" ? renderAutoGitmojiToggle() : ""}
-        </div>
-
-        ${description}
-
-        ${renderTokenFreqChips(token)}
-
-        ${renderInputControl(token)}
-
-        ${renderScopeSaveButton(token)}
+    let frequentChipsType = "";
+    if (
+      token.name === "type" &&
+      settings.rememberFrequentTypes &&
+      settings.frequentTypes?.length
+    ) {
+      frequentChipsType = `
+      <div class="freq-chips" style="margin-top: 6px; margin-bottom: 4px;">
+        <span style="font-size: 9.5px; color: var(--cme-faint); margin-right: 6px; font-weight: 500;">
+          Frequent:
+        </span>
+        ${settings.frequentTypes
+          .map(
+            (type) => `
+            <span class="freq-chip">
+              <span class="freq-chip-label" data-set-field="${escapeAttr(token.name)}" data-set-value="${escapeAttr(type)}" data-toggle="true">
+                ${escapeHtml(type)}
+              </span>
+            </span>
+          `,
+          )
+          .join("")}
       </div>
     `;
+    }
+
+    // ===== چیپ‌های Frequent برای Scope (جدید) =====
+    let frequentChipsScope = "";
+    if (
+      token.name === "scope" &&
+      settings.rememberFrequentScopes &&
+      settings.frequentScopes?.length
+    ) {
+      const existingScopes = new Set(settings.scopes || []);
+      const frequentScopes = settings.frequentScopes.filter(
+        (s) => !existingScopes.has(s),
+      );
+      if (frequentScopes.length > 0) {
+        frequentChipsScope = `
+        <div class="freq-chips" style="margin-top: 6px; margin-bottom: 4px;">
+          <span style="font-size: 9.5px; color: var(--cme-faint); margin-right: 6px; font-weight: 500;">
+            Frequent:
+          </span>
+          ${frequentScopes
+            .slice(0, 5)
+            .map(
+              (scope) => `
+              <span class="freq-chip">
+                <span class="freq-chip-label" data-set-field="scope" data-set-value="${escapeAttr(scope)}">
+                  ${escapeHtml(scope)}
+                </span>
+              </span>
+            `,
+            )
+            .join("")}
+        </div>
+      `;
+      }
+    }
+
+    // ===== دکمه‌ی Format برای Body =====
+    let extraButtons = "";
+    if (token.name === "body") {
+      extraButtons = `
+        <div class="field-actions" style="display: flex; justify-content: flex-end; margin-top: 4px;">
+          <button class="issue-cell-git-btn" id="btn-format-body-${escapeAttr(token.name)}" type="button" title="${t("form.formatBodyTitle")}">
+            ${t("form.formatBody")}
+          </button>
+        </div>
+      `;
+    }
+
+    // ===== ساختار ویژه برای فیلد Body (textarea + دکمه در کنار هم) =====
+    let inputControl = renderInputControl(token);
+    let fieldWrapper = "";
+    if (token.name === "body") {
+      fieldWrapper = `
+      <div style="display: flex; gap: 8px; align-items: stretch;">
+        ${inputControl}
+        ${extraButtons}
+      </div>
+    `;
+    } else {
+      fieldWrapper = inputControl + extraButtons;
+    }
+
+    // ===== خروجی نهایی =====
+    return `
+    <div class="field">
+      <div class="field-head">
+        <label for="f-${escapeAttr(token.name)}">
+          ${escapeHtml(token.label)}
+          ${requiredMark}
+        </label>
+        ${token.name === "type" ? renderAutoGitmojiToggle() : ""}
+      </div>
+      ${description}
+      ${token.name === "type" ? frequentChipsType : ""}
+      ${token.name === "scope" ? frequentChipsScope : ""}
+      ${renderTokenFreqChips(token)}
+      ${fieldWrapper}
+      <div class="validation-msg"></div>
+    </div>
+  `;
   }
 
   function renderAutoGitmojiToggle() {
@@ -1490,43 +2115,33 @@
   }
 
   function renderTokenFreqChips(token) {
+    const chips = [];
+
+    // فقط چیپ‌های ذخیره‌شده (Saved Scopes) – با قابلیت حذف
     if (
       token.name === "scope" &&
       Array.isArray(settings.scopes) &&
       settings.scopes.length
     ) {
-      return `
-        <div class="freq-chips">
-          ${settings.scopes
-            .map(
-              (scope) => `
-                <span class="freq-chip">
-                  <span
-                    class="freq-chip-label"
-                    data-set-field="scope"
-                    data-set-value="${escapeAttr(scope)}"
-                  >
-                    ${escapeHtml(scope)}
-                  </span>
-
-                  <button
-                    type="button"
-                    class="freq-chip-remove"
-                    data-remove-scope="${escapeAttr(scope)}"
-                    title="حذف اسکوپ ذخیره‌شده «${escapeAttr(scope)}»"
-                    aria-label="حذف اسکوپ ذخیره‌شده ${escapeAttr(scope)}"
-                  >
-                    ✕
-                  </button>
-                </span>
-              `,
-            )
-            .join("")}
-        </div>
-      `;
+      for (const scope of settings.scopes) {
+        chips.push(`
+        <span class="freq-chip">
+          <span class="freq-chip-label" data-set-field="scope" data-set-value="${escapeAttr(scope)}">
+            ${escapeHtml(scope)}
+          </span>
+          <button type="button" class="freq-chip-remove" data-remove-scope="${escapeAttr(scope)}" title="حذف اسکوپ ذخیره‌شده «${escapeAttr(scope)}»" aria-label="حذف اسکوپ ذخیره‌شده ${escapeAttr(scope)}">
+            ✕
+          </button>
+        </span>
+      `);
+      }
     }
 
-    return "";
+    // ===== بخش Frequent Scope حذف شد (اکنون در renderField قرار دارد) =====
+
+    return chips.length
+      ? `<div class="freq-chips">${chips.join("")}</div>`
+      : "";
   }
 
   function renderInputControl(token) {
@@ -1749,7 +2364,6 @@
 
   function bindField(token) {
     const element = document.getElementById(`f-${token.name}`);
-
     if (!element) return;
 
     if (token.type === "boolean") {
@@ -1822,6 +2436,18 @@
           }
         });
       });
+
+    if (token.name === "body") {
+      const formatBtn = document.getElementById(
+        `btn-format-body-${token.name}`,
+      );
+      if (formatBtn) {
+        formatBtn.addEventListener("click", (e) => {
+          e.stopPropagation(); // جلوگیری از انتشار رویداد
+          formatBody();
+        });
+      }
+    }
 
     const addButton = document.getElementById(`scope-add-${token.name}`);
 
@@ -1982,8 +2608,12 @@
     });
 
     bindClick("btn-reset", () => {
-      values = {};
-      conditionalEnabled = {};
+      if (editorMode === "freeform") {
+        freeformText = "";
+      } else {
+        values = {};
+        conditionalEnabled = {};
+      }
 
       saveDraft();
       render();
@@ -2000,6 +2630,12 @@
 
       vscode.postMessage({
         type: "requestAutoSuggest",
+      });
+    });
+
+    bindClick("btn-giteditor", () => {
+      vscode.postMessage({
+        type: "openAsGitEditor",
       });
     });
 
@@ -2023,14 +2659,14 @@
       });
     });
 
-    bindClick("btn-git-template", () => {
+    bindClick("btn-gittemplate", () => {
       vscode.postMessage({
         type: "writeGitTemplate",
         message: buildMessage(),
       });
     });
 
-    bindClick("btn-project-config", () => {
+    bindClick("btn-projectconfig", () => {
       vscode.postMessage({
         type: "createProjectConfig",
       });
@@ -2041,6 +2677,10 @@
         type: "amendLast",
         message: buildMessage(),
       });
+    });
+
+    bindClick("btn-settings", () => {
+      vscode.postMessage({ type: "openSettings" });
     });
 
     bindClick("btn-undo", () => {

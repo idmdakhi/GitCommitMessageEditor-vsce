@@ -1,16 +1,11 @@
 {
-  "gitCommitMessageEditor.autoFillSignedOffBy": false,
+  "gitCommitMessageEditor.autoFillSignedOffBy": true,
   "gitCommitMessageEditor.autoGitmoji": false,
-  "gitCommitMessageEditor.scopes": [
-    "templates",
-    "config",
-    "panels",
-    "utils",
-    "schemas",
-    "media",
-    "docs",
-    "wiki",
-    "setting"
-  ],
-  "gitCommitMessageEditor.types": []
+  "gitCommitMessageEditor.scopes": [],
+  "gitCommitMessageEditor.types": [],
+  // "editor.rulers": [50, 72],
+  "files.trimTrailingWhitespace": true
+  // "gitCommitMessageEditor.scmTitleCommand": "open",
+  // "gitCommitMessageEditor.defaultEditorMode": "form",
+  // "gitCommitMessageEditor.language": "en"
 }

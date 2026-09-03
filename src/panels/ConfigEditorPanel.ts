@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { ConfigManager } from "../config/configManager";
 import { PortableConfig } from "../config/types";
+import { t } from "../i18n";
 
 export class ConfigEditorPanel {
   public static currentPanel: ConfigEditorPanel | undefined;
@@ -18,7 +19,7 @@ export class ConfigEditorPanel {
     }
     const panel = vscode.window.createWebviewPanel(
       "gitCommitMessageEditorConfig",
-      "Commit Message Template Settings",
+      t("configEditor.title"),
       vscode.ViewColumn.Active,
       { enableScripts: true, retainContextWhenHidden: true },
     );
@@ -76,7 +77,7 @@ export class ConfigEditorPanel {
         this.onChange();
         this.post();
         vscode.window.showInformationMessage(
-          `Template “${msg.name}” activated.`,
+          t("configEditor.activateSuccess", { name: msg.name }),
         );
         break;
       case "save": {
@@ -87,10 +88,12 @@ export class ConfigEditorPanel {
           this.onChange();
           this.post();
           vscode.window.showInformationMessage(
-            `Template “${cfg.name}” saved to .vscode/commit-templates.`,
+            t("configEditor.saveSuccess", { name: cfg.name }),
           );
         } catch (e: any) {
-          vscode.window.showErrorMessage(`Validation error: ${e.message ?? e}`);
+          vscode.window.showErrorMessage(
+            t("configEditor.validationError") + (e.message ?? e),
+          );
         }
         break;
       }
@@ -123,30 +126,36 @@ export class ConfigEditorPanel {
 
   private validate(cfg: PortableConfig) {
     if (!cfg.name || !cfg.name.trim()) {
-      throw new Error("Template name cannot be empty.");
+      throw new Error(t("configEditor.nameRequired"));
     }
     if (!Array.isArray(cfg.tokens) || cfg.tokens.length === 0) {
-      throw new Error("At least one token is required.");
+      throw new Error(t("configEditor.tokenRequired"));
     }
     const names = new Set<string>();
-    for (const t of cfg.tokens) {
-      if (!/^[a-zA-Z][a-zA-Z0-9]*$/.test(t.name)) {
+    // نکته: از نام `token` استفاده می‌شود نه `t`، چون `t` نام تابع ترجمه‌ی
+    // import‌شده در بالای فایل است — استفاده از `t` به‌عنوان نام متغیر حلقه
+    // آن را در این scope مخفی می‌کرد و هر فراخوانی t(...) درون حلقه با خطای
+    // «t is not a function» مواجه می‌شد.
+    for (const token of cfg.tokens) {
+      if (!/^[a-zA-Z][a-zA-Z0-9]*$/.test(token.name)) {
         throw new Error(
-          `Token name “${t.name}” is invalid (English letters/digits only, no spaces).`,
+          t("configEditor.invalidTokenName", { name: token.name }),
         );
       }
-      if (names.has(t.name)) {
-        throw new Error(`Duplicate token name: ${t.name}`);
-      }
-      names.add(t.name);
-      if (t.type === "enum" && (!t.options || t.options.length === 0)) {
+      if (names.has(token.name)) {
         throw new Error(
-          `Enum token “${t.name}” must have at least one option.`,
+          t("configEditor.duplicateTokenName", { name: token.name }),
+        );
+      }
+      names.add(token.name);
+      if (token.type === "enum" && (!token.options || token.options.length === 0)) {
+        throw new Error(
+          t("configEditor.enumRequiresOptions", { name: token.name }),
         );
       }
     }
     if (!Array.isArray(cfg.template) || cfg.template.length === 0) {
-      throw new Error("template cannot be empty.");
+      throw new Error(t("configEditor.templateRequired"));
     }
   }
 
