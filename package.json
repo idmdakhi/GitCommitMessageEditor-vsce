@@ -2,7 +2,7 @@
   "name": "gitcme",
   "displayName": "Gitcme » Git Commit Message Editor",
   "description": "Modern commit message editor with configurable form, IntelliSense, and AI draft",
-  "version": "1.2.0",
+  "version": "1.6.0",
   "publisher": "idmdakhi",
   "keywords": [
     "git",
@@ -47,8 +47,7 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:gitCommitMessageEditor.open",
-    "onCommand:gitCommitMessageEditor.openSettings"
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -95,6 +94,21 @@
       {
         "command": "gitCommitMessageEditor.undoLastInsert",
         "title": "Git Commit Message Editor: Undo Last Insert"
+      },
+      {
+        "command": "gitCommitMessageEditor.openAsGitEditor",
+        "title": "Git Commit Message Editor: Open as Git Editor (COMMIT_EDITMSG)",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "gitCommitMessageEditor.applyGitEditorMessage",
+        "title": "Git Commit Message Editor: Apply Git Editor Message",
+        "icon": "$(check)"
+      },
+      {
+        "command": "gitCommitMessageEditor.closeGitEditor",
+        "title": "Git Commit Message Editor: Close Git Editor",
+        "icon": "$(close)"
       }
     ],
     "menus": {
@@ -102,7 +116,12 @@
         {
           "command": "gitCommitMessageEditor.open",
           "group": "navigation",
-          "when": "scmProvider == git"
+          "when": "scmProvider == git && gitcme.scmTitleCommand == 'open'"
+        },
+        {
+          "command": "gitCommitMessageEditor.openAsGitEditor",
+          "group": "navigation",
+          "when": "scmProvider == git && gitcme.scmTitleCommand == 'openAsGitEditor'"
         }
       ],
       "commandPalette": [
@@ -126,6 +145,15 @@
         },
         {
           "command": "gitCommitMessageEditor.undoLastInsert"
+        },
+        {
+          "command": "gitCommitMessageEditor.openAsGitEditor"
+        },
+        {
+          "command": "gitCommitMessageEditor.applyGitEditorMessage"
+        },
+        {
+          "command": "gitCommitMessageEditor.closeGitEditor"
         }
       ]
     },
@@ -196,13 +224,57 @@
           "type": "boolean",
           "default": true,
           "description": "Keep the editor tab open after inserting into Source Control"
+        },
+        "gitCommitMessageEditor.autoApplyGitEditor": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically apply the commit message to Source Control when saving the Git Editor (COMMIT_EDITMSG)"
+        },
+        "gitCommitMessageEditor.defaultEditorMode": {
+          "type": "string",
+          "enum": [
+            "form",
+            "freeform"
+          ],
+          "default": "form",
+          "description": "Default editor mode when opening the commit message editor. 'form' shows the structured form, 'freeform' shows a single textarea."
+        },
+        "gitCommitMessageEditor.scmTitleCommand": {
+          "type": "string",
+          "enum": [
+            "open",
+            "openAsGitEditor"
+          ],
+          "default": "open",
+          "description": "Which command to show in the Source Control title bar. 'open' shows the standard editor, 'openAsGitEditor' shows the Git Editor (COMMIT_EDITMSG) mode."
+        },
+        "gitCommitMessageEditor.rememberFrequentTypes": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show frequent Type values as clickable chips"
+        },
+        "gitCommitMessageEditor.rememberFrequentScopes": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show frequent Scope values as clickable chips"
+        },
+        "gitCommitMessageEditor.language": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "en",
+            "fa"
+          ],
+          "default": "auto",
+          "description": "UI language (auto = follow VS Code display language)"
         }
       }
     }
   },
   "scripts": {
     "package": "vsce package",
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run clean && npm run compile",
+    "clean": "rm -rf out/",
     "compile": "npm run check-types && npm run bundle -- --production",
     "check-types": "tsc -p ./ --noEmit",
     "bundle": "node esbuild.js",

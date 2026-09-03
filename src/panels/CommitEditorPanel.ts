@@ -19,7 +19,10 @@ import {
   GitApiRepository,
   execGit,
   getStagedFiles,
+  getFrequentValues,
 } from "../utils/git";
+import { getI18nDictionary, I18nManager } from "../i18n";
+import { t } from "../i18n";
 
 const DRAFT_STATE_KEY = "gitCommitMessageEditor.draft";
 const UNDO_STATE_KEY = "gitCommitMessageEditor.undoValue";
@@ -43,7 +46,7 @@ export class CommitEditorPanel {
 
     const panel = vscode.window.createWebviewPanel(
       "gitCommitMessageEditor",
-      "Commit Message Editor",
+      t("title"),
       targetColumn,
       {
         enableScripts: true,
@@ -107,7 +110,7 @@ export class CommitEditorPanel {
       case "copy":
         await vscode.env.clipboard.writeText(msg.message as string);
         vscode.window.showInformationMessage(
-          "Commit message copied to clipboard.",
+          t("status.copySuccess"),
         );
         break;
       case "saveDraft":
@@ -211,7 +214,7 @@ export class CommitEditorPanel {
           this.panel.webview.postMessage({
             type: "gitIdentityResult",
             value: "",
-            message: "No active Git repository found.",
+            message: t("status.noGitRepo"),
           });
           break;
         }
@@ -222,8 +225,7 @@ export class CommitEditorPanel {
           this.panel.webview.postMessage({
             type: "gitIdentityResult",
             value: "",
-            message:
-              "Git user.name / user.email are not configured for this repository.",
+            message: t("status.gitIdentityNotFound"),
           });
           break;
         }
@@ -238,6 +240,17 @@ export class CommitEditorPanel {
         });
         break;
       }
+
+      case "openAsGitEditor":
+        vscode.commands.executeCommand(
+          "gitCommitMessageEditor.openAsGitEditor",
+        );
+        break;
+
+      case "openSettings":
+        vscode.commands.executeCommand("gitCommitMessageEditor.openSettings");
+        break;
+
       default:
         break;
     }
@@ -253,6 +266,19 @@ export class CommitEditorPanel {
             this.cfg().get<number>("recentCommitsMaxItems", 12),
           )
         : [];
+
+    const rememberFrequentTypes = this.cfg().get<boolean>(
+      "rememberFrequentTypes",
+      true,
+    );
+    const rememberFrequentScopes = this.cfg().get<boolean>(
+      "rememberFrequentScopes",
+      true,
+    );
+    const frequentValues =
+      cwd && (rememberFrequentTypes || rememberFrequentScopes)
+        ? await getFrequentValues(cwd)
+        : { types: [], scopes: [] };
 
     const { repos, currentIndex } = await this.getRepoList();
     const currentInfo = await this.getCurrentRepoInfo();
@@ -283,6 +309,10 @@ export class CommitEditorPanel {
         ...(projectConfig?.data.scopes || []),
       ]),
     );
+    const defaultEditorMode = this.cfg().get<string>(
+      "defaultEditorMode",
+      "form",
+    );
 
     this.panel.webview.postMessage({
       type: "init",
@@ -297,10 +327,15 @@ export class CommitEditorPanel {
           this.cfg().get("maxSubjectLength"),
         maxLineLength:
           projectConfig?.data.maxLineLength ?? this.cfg().get("maxLineLength"),
-        rememberFrequentValues: this.cfg().get("rememberFrequentValues"),
+        rememberFrequentValues: this.cfg().get("rememberFrequentValues"), // @depracted
+        rememberFrequentTypes,
+        rememberFrequentScopes,
         emojiPrefix:
-          projectConfig?.data.emojiPrefix ?? this.cfg().get("emojiPrefix"),
-        autoGitmoji: this.cfg().get("autoGitmoji", true),
+          projectConfig?.data.emojiPrefix ??
+          this.cfg().get("emojiPrefix", false),
+        autoGitmoji: this.cfg().get("autoGitmoji", false),
+        frequentTypes: frequentValues.types,
+        frequentScopes: frequentValues.scopes,
       },
       draft,
       recentCommits,
@@ -313,6 +348,10 @@ export class CommitEditorPanel {
         currentIndex,
         currentInfo,
       },
+      defaultEditorMode,
+      i18n: getI18nDictionary(),
+      lang: I18nManager.getInstance().getLanguage(),
+      dir: I18nManager.getInstance().getDirection(),
     });
 
     await this.sendAutoSuggestions(projectConfig?.data);
@@ -361,7 +400,7 @@ export class CommitEditorPanel {
   public async createProjectConfigFile() {
     const cwd = await this.getRepoCwd();
     if (!cwd) {
-      vscode.window.showWarningMessage("No repository found.");
+      vscode.window.showWarningMessage(t("status.noRepo"));
       return;
     }
     const targetUri = vscode.Uri.file(
@@ -370,7 +409,7 @@ export class CommitEditorPanel {
     try {
       await vscode.workspace.fs.stat(targetUri);
       const overwrite = await vscode.window.showWarningMessage(
-        "commit-message-template.json already exists. Overwrite?",
+        t("status.repoConfigExists"),
         { modal: true },
         "Yes",
       );
@@ -386,22 +425,18 @@ export class CommitEditorPanel {
     );
     const doc = await vscode.workspace.openTextDocument(targetUri);
     await vscode.window.showTextDocument(doc);
-    vscode.window.showInformationMessage(
-      "Repo config file created. Edit and commit it to share with the team.",
-    );
+    vscode.window.showInformationMessage(t("status.repoConfigCreated"));
   }
 
   private async insertIntoScm(message: string) {
     const api = await activateGitExtension();
     if (!api) {
-      vscode.window.showWarningMessage(
-        "The built-in VS Code Git extension is not active.",
-      );
+      vscode.window.showWarningMessage(t("status.gitExtensionInactive"));
       return;
     }
     const repo = pickRepository(api);
     if (!repo) {
-      vscode.window.showWarningMessage("No Git repository found.");
+      vscode.window.showWarningMessage(t("status.noGitRepo"));
       return;
     }
     await this.context.workspaceState.update(
@@ -409,9 +444,7 @@ export class CommitEditorPanel {
       repo.inputBox.value,
     );
     repo.inputBox.value = message;
-    vscode.window.showInformationMessage(
-      "Commit message inserted into Source Control.",
-    );
+    vscode.window.showInformationMessage(t("status.insertSuccess"));
 
     if (!this.cfg().get<boolean>("keepAfterSave", true)) {
       this.panel.dispose();
@@ -425,30 +458,28 @@ export class CommitEditorPanel {
       undefined,
     );
     if (prev === undefined) {
-      vscode.window.showInformationMessage(
-        "Nothing to undo (no message has been inserted yet).",
-      );
+      vscode.window.showInformationMessage(t("status.undoNothing"));
       return;
     }
     const api = await activateGitExtension();
     const repo = api ? pickRepository(api) : undefined;
     if (!repo) {
-      vscode.window.showWarningMessage("No Git repository found.");
+      vscode.window.showWarningMessage(t("status.noGitRepo"));
       return;
     }
     repo.inputBox.value = prev;
     await this.context.workspaceState.update(UNDO_STATE_KEY, undefined);
-    vscode.window.showInformationMessage("Last insert undone.");
+    vscode.window.showInformationMessage(t("status.undoSuccess"));
   }
 
   private async amendLast(message: string) {
     const cwd = await this.getRepoCwd();
     if (!cwd) {
-      vscode.window.showWarningMessage("No repository found.");
+      vscode.window.showWarningMessage(t("status.noRepo"));
       return;
     }
     const confirm = await vscode.window.showWarningMessage(
-      "The last commit will be replaced with the new message. Continue?",
+      t("status.amendConfirm"),
       { modal: true },
       "Yes, amend",
     );
@@ -457,9 +488,11 @@ export class CommitEditorPanel {
     }
     try {
       await amendLastCommit(cwd, message);
-      vscode.window.showInformationMessage("Last commit amended successfully.");
+      vscode.window.showInformationMessage(t("status.amendSuccess"));
     } catch (e: any) {
-      vscode.window.showErrorMessage(`Amend failed: ${e.message ?? e}`);
+      vscode.window.showErrorMessage(
+        t("status.amendFailed") + (e.message ?? e),
+      );
     }
   }
 
@@ -467,7 +500,7 @@ export class CommitEditorPanel {
   private async writeGitTemplate(message: string) {
     const cwd = await this.getRepoCwd();
     if (!cwd) {
-      vscode.window.showWarningMessage("No repository found.");
+      vscode.window.showWarningMessage(t("status.noRepo"));
       return;
     }
     const uri = vscode.Uri.file(`${cwd}/.gitmessage`);
@@ -480,12 +513,10 @@ export class CommitEditorPanel {
       (err) => {
         if (err) {
           vscode.window.showErrorMessage(
-            `Failed to set commit.template: ${err.message}`,
+            t("status.gitTemplateFailed") + err.message,
           );
         } else {
-          vscode.window.showInformationMessage(
-            "Message registered as commit.template (.gitmessage).",
-          );
+          vscode.window.showInformationMessage(t("status.gitTemplateSuccess"));
         }
       },
     );
@@ -510,8 +541,7 @@ export class CommitEditorPanel {
     if (!models || models.length === 0) {
       this.panel.webview.postMessage({
         type: "aiDraftError",
-        message:
-          "No language model available. Please install GitHub Copilot Chat and sign in.",
+        message: t("status.noModel"),
       });
       return;
     }
@@ -520,7 +550,7 @@ export class CommitEditorPanel {
     if (!cwd) {
       this.panel.webview.postMessage({
         type: "aiDraftError",
-        message: "No repository found.",
+        message: t("status.noRepo"),
       });
       return;
     }
@@ -528,13 +558,17 @@ export class CommitEditorPanel {
     if (!diff.trim()) {
       this.panel.webview.postMessage({
         type: "aiDraftError",
-        message: "No changes to analyze (nothing staged).",
+        message: t("status.noChanges"),
       });
       return;
     }
 
     try {
       const model = models[0];
+      // این پرامپت برای مدل زبانی است، نه برای کاربر — عمداً همیشه به
+      // انگلیسی می‌ماند: خروجی باید JSON با کلیدهای ثابت type/scope/subject/
+      // body باشد، و ترجمه‌ی این دستورالعمل‌ها ریسک بی‌ثبات کردن آن قالب را
+      // دارد بدون هیچ فایده‌ای برای کاربر (این متن هرگز در UI دیده نمی‌شود).
       const prompt = [
         "You are a commit message assistant. Analyze this git diff and respond ONLY with a compact JSON object",
         "with keys: type, scope, subject, body. type must be one of: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, wip.",
@@ -561,7 +595,7 @@ export class CommitEditorPanel {
     } catch (e: any) {
       this.panel.webview.postMessage({
         type: "aiDraftError",
-        message: `AI draft error: ${e.message ?? e}`,
+        message: t("status.aiError") + (e.message ?? e),
       });
     }
   }
@@ -575,17 +609,20 @@ export class CommitEditorPanel {
       vscode.Uri.joinPath(this.context.extensionUri, "assets", "main.css"),
     );
     const nonce = getNonce();
+    const i18nManager = I18nManager.getInstance();
+    const lang = i18nManager.getLanguage();
+    const dir = i18nManager.getDirection();
 
     return /* html */ `<!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="${lang}" dir="${dir}">
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';" />
   <link href="${styleUri}" rel="stylesheet" />
-  <title>Commit Message Editor</title>
+  <title>${escapeHtmlAttr(t("title"))}</title>
 </head>
 <body>
-  <div id="app">Loading...</div>
+  <div id="app">${escapeHtmlAttr(t("loading"))}</div>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;
@@ -634,7 +671,7 @@ export class CommitEditorPanel {
   private async getCurrentRepoInfo() {
     const { repos, currentIndex } = await this.getRepoList();
     if (!repos.length || currentIndex < 0) {
-      return { name: "no repo", branch: "N/A", stagedCount: 0 };
+      return { name: t("repoInfo.noRepo"), branch: "N/A", stagedCount: 0 };
     }
     const repo = repos[currentIndex];
     const name = repo.rootUri.fsPath.split(/[\\/]/).pop() || "unknown";
@@ -650,6 +687,14 @@ export class CommitEditorPanel {
     } catch {}
     return { name, branch, stagedCount };
   }
+}
+
+function escapeHtmlAttr(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function getNonce() {

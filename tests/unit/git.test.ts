@@ -25,7 +25,7 @@ import {
   getRepoInfo,
   GitApiRepository,
 } from "../../src/utils/git";
-import { __mockState, __resetMockState } from "vscode";
+import { __mockState, __resetMockState } from "../__mocks__/vscode";
 
 const mockExecFile = cp.execFile as unknown as jest.Mock;
 const mockSpawn = cp.spawn as unknown as jest.Mock;

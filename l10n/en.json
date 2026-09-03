@@ -1,0 +1,209 @@
+{
+  "title": "Commit Message Editor",
+  "loading": "Loading...",
+  "templateName": "Template name",
+  "sourceBadge": "Source",
+  "repoBadge": "repo",
+
+  "toolbar": {
+    "insert": "Insert",
+    "copy": "Copy",
+    "reset": "Reset",
+    "suggestions": "⚡ Suggestions",
+    "gitEditor": "📝 Git Editor",
+    "more": "⋮ More"
+  },
+
+  "moreMenu": {
+    "aiDraft": "✨ AI Draft",
+    "amendLast": "🔄 Amend Last",
+    "undoInsert": "↩️ Undo Insert",
+    "gitTemplate": "📌 Git Template",
+    "templateConfig": "⚙ Template",
+    "repoConfig": "📁 Repo Config",
+    "settings": "⚙️ Settings"
+  },
+
+  "form": {
+    "typeLabel": "Type",
+    "scopeLabel": "Scope",
+    "subjectLabel": "Subject",
+    "bodyLabel": "Body",
+    "gitmojiLabel": "Gitmoji",
+    "autoGitmoji": "Auto Gitmoji",
+    "required": "*",
+    "descriptionType": "Change type per Conventional Commits",
+    "descriptionScope": "Area of the codebase affected (optional)",
+    "descriptionSubject": "Short summary in imperative mood",
+    "descriptionBody": "Full description of the changes and why",
+    "descriptionBreakingChange": "Describe the breaking change (leave empty if none)",
+    "descriptionCloses": "Issue numbers closed by this commit, comma-separated",
+    "descriptionResolves": "Issue numbers; # is added automatically",
+    "descriptionRefs": "Related issues or commits",
+    "descriptionSeeAlso": "Additional references",
+    "descriptionSignedOffBy": "Name <email>",
+    "descriptionCoAuthoredBy": "One person per line: Name <email>",
+    "descriptionReviewedBy": "One person per line: Name <email>",
+    "descriptionTestedBy": "One person per line: Name <email>",
+    "descriptionAckedBy": "One person per line: Name <email>",
+    "descriptionReportedBy": "One person per line: Name <email>",
+
+    "frequentLabel": "Frequent:",
+    "saveScope": "➕ Save",
+    "fetchGitIdentity": "⇩ Git",
+    "formatBody": "✏️ Format",
+    "formatBodyTitle": "Auto-format body text (wrap lines based on maxLineLength)",
+    "placeholderScope": "e.g. auth, api",
+    "placeholderSignedOffBy": "Name <email>",
+    "placeholderCloses": "e.g. 123, 456",
+    "placeholderResolves": "e.g. 123, 456",
+    "placeholderRefs": "e.g. PR-42",
+    "placeholderSeeAlso": "e.g. issue-789",
+    "placeholderCoAuthoredBy": "Person One <one@example.com>",
+    "placeholderReviewedBy": "Person Two <two@example.com>",
+    "placeholderTestedBy": "Person Three <three@example.com>",
+    "placeholderAckedBy": "Person Four <four@example.com>",
+    "placeholderReportedBy": "Person Five <five@example.com>",
+
+    "breakingChangeLabel": "BREAKING CHANGE",
+    "additionalDetails": "Additional details",
+    "optionalSection": "Optional fields"
+  },
+
+  "freeform": {
+    "label": "Commit message",
+    "description": "Write the full commit message exactly as it should be committed — no fields, no template, just text. The first line is the subject; leave a blank line before the body.",
+    "placeholder": "feat(scope): subject\n\nBody of the commit message..."
+  },
+
+  "preview": {
+    "title": "Message preview",
+    "tab": ".git / COMMIT_EDITMSG",
+    "empty": "Your commit message will appear here…",
+    "lineCount": "line",
+    "linesCount": "lines",
+    "charCount": "chars"
+  },
+
+  "recentCommits": {
+    "title": "Recent commits",
+    "clickToLoad": "Click to load"
+  },
+
+  "dashboard": {
+    "emptyMessage": "Free-form message — empty",
+    "filledMessage": "Free-form message",
+    "progress": "sections",
+    "warning": "warning",
+    "warnings": "warnings",
+    "clickToJump": "click to jump"
+  },
+
+  "status": {
+    "bodyFormatted": "Body formatted successfully.",
+    "bodyEmpty": "Body is empty. Nothing to format.",
+    "noBodyField": "No 'body' field found in the current template.",
+    "aiDraftApplied": "AI draft applied.",
+    "aiDraftFailed": "AI draft failed.",
+    "noCompatibleFields": "Active template has no compatible fields to apply.",
+    "noModel": "No language model available. Please install GitHub Copilot Chat and sign in.",
+    "noRepo": "No repository found.",
+    "noChanges": "No changes to analyze (nothing staged).",
+    "aiError": "AI draft error: ",
+    "copySuccess": "Commit message copied to clipboard.",
+    "insertSuccess": "Commit message inserted into Source Control.",
+    "amendConfirm": "The last commit will be replaced with the new message. Continue?",
+    "amendYes": "Yes, amend",
+    "amendSuccess": "Last commit amended successfully.",
+    "amendFailed": "Amend failed: ",
+    "undoNothing": "Nothing to undo (no message has been inserted yet).",
+    "undoSuccess": "Last insert undone.",
+    "gitTemplateSuccess": "Message registered as commit.template (.gitmessage).",
+    "gitTemplateFailed": "Failed to set commit.template: ",
+    "repoConfigExists": "commit-message-template.json already exists. Overwrite?",
+    "repoConfigCreated": "Repo config file created. Edit and commit it to share with the team.",
+    "noRepoFound": "No repository found.",
+    "gitExtensionInactive": "The built-in VS Code Git extension is not active.",
+    "noGitRepo": "No Git repository found.",
+    "noMessageToApply": "No commit message to apply.",
+    "emptyMessageConfirm": "Commit message is empty after removing comments.",
+    "continueEmpty": "Continue with empty message",
+    "cancel": "Cancel",
+    "gitEditorOpen": "✏️ Git Editor: Write your commit message. Lines starting with # are comments. Save (Ctrl+S) to update.",
+    "gitEditorFailed": "Failed to open Git Editor: ",
+    "gitIdentityNotFound": "Git user.name / user.email are not configured for this repository.",
+    "gitIdentityFetched": "Identity fetched from Git config.",
+    "gitExtensionNotAvailable": "Git extension not available.",
+    "repositoryNotFound": "Repository not found.",
+    "gitEditorSaved": "Message saved. Use \"Apply Git Editor Message\" to insert into SCM."
+  },
+
+  "configEditor": {
+    "title": "Commit Message Template Settings",
+    "activeTemplate": "Active template:",
+    "activate": "Activate",
+    "duplicate": "Duplicate template",
+    "delete": "Delete",
+    "save": "💾 Save changes",
+    "export": "Export JSON",
+    "import": "Import from JSON",
+    "builtIn": "built-in",
+    "workspace": "repo: .vscode/commit-templates",
+    "priority": "Priority — <b>repo templates</b> (<code>.vscode/commit-templates/*.json</code>) always win over <b>built-in templates</b> (bundled with the extension) when names match.",
+    "workspaceDescription": "This template is saved in the current repo and can be edited, deleted, or shared via version control.",
+    "builtInDescription": "This is a built-in template. Use “Duplicate template” to create an editable, repo-saved copy.",
+    "noWorkspace": "⚠ No workspace folder is open — saving a new/duplicated template will fail until you open a repo.",
+    "hint": "Edit the template structure as JSON. Each token is an object with <code>name</code>, <code>label</code>, <code>type</code> (<code>text</code> | <code>boolean</code> | <code>enum</code>), and optionally <code>prefix</code>, <code>suffix</code>, <code>multiline</code>, <code>issueList</code>, <code>perLine</code>, <code>options</code>. In <code>template</code>, each line may contain <code>{tokenName}</code>; lines where all tokens are empty are automatically removed from the final message. Structure follows <code>schemas/v1-template.schema.json</code>.",
+    "deleteDisabledTitle": "Built-in templates cannot be deleted.",
+    "activateSuccess": "Template “{name}” activated.",
+    "saveSuccess": "Template “{name}” saved to .vscode/commit-templates.",
+    "validationError": "Validation error: ",
+    "deleteError": "Built-in templates cannot be deleted. Only templates saved in this repo's .vscode/commit-templates can be removed.",
+    "exportSuccess": "Template saved successfully.",
+    "importSuccess": "Template “{name}” imported successfully.",
+    "importFailed": "Import failed: ",
+    "noWorkspaceForSave": "No open repository/workspace — templates are saved into .vscode/commit-templates in the repo, so a workspace folder must be open first.",
+    "saveLabel": "Save template",
+    "importDialogLabel": "Import template",
+    "invalidFileStructure": "Invalid file structure (tokens or template missing).",
+    "nameRequired": "Template name cannot be empty.",
+    "tokenRequired": "At least one token is required.",
+    "templateRequired": "Template structure cannot be empty.",
+    "invalidTokenName": "Token name “{name}” is invalid (English letters/digits only, no spaces).",
+    "duplicateTokenName": "Duplicate token name: {name}",
+    "enumRequiresOptions": "Enum token “{name}” must have at least one option."
+  },
+
+  "modes": {
+    "form": "🧩 Form",
+    "freeform": "📝 Free-form"
+  },
+
+  "statusBar": {
+    "tooltip": "Open Commit Message Editor"
+  },
+
+  "repoInfo": {
+    "staged": "staged",
+    "noRepo": "no repo",
+    "unknown": "unknown",
+    "detached": "detached"
+  },
+
+  "validation": {
+    "subjectTooLong": "Subject is longer than {max} characters.",
+    "subjectNoPeriod": "Subject should not end with a period.",
+    "subjectNoCapital": "Subject should not start with a capital letter.",
+    "imperativeMood": "Use imperative mood (add, not added).",
+    "lineTooLong": "One or more lines in “{label}” exceed {max} characters.",
+    "fieldRequired": "Required field “{label}” is empty.",
+    "messageEmpty": "Commit message is empty.",
+    "firstLineTooLong": "First line is longer than {max} characters.",
+    "firstLineNoPeriod": "First line should not end with a period.",
+    "firstLineNoCapital": "First line should not start with a capital letter.",
+    "blankLineRequired": "Leave a blank line between the first line and the body.",
+    "bodyLineTooLong": "One or more lines in the body exceed {max} characters.",
+    "fieldValueRequired": "“{label}” is required.",
+    "exceedsMaxLength": "Exceeds max length ({length}/{max})."
+  }
+}
