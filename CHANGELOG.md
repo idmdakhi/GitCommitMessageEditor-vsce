@@ -12,8 +12,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 #### Core Editor
 
-- **Free‑form Text mode** – toggle between structured form and free‑text writing with a large textarea (#Phase2)
-- **Git Editor Mode** – edit `COMMIT_EDITMSG` directly in a full VS Code editor with 50/72 rulers and auto‑apply (#Phase0)
+- **Free‑form Text mode** – toggle between structured form and free‑text writing with a large textarea
+- **Git Editor Mode** – edit `COMMIT_EDITMSG` directly in a full VS Code editor with 50/72 rulers and auto‑apply
 - **Advanced Issue/PR references** – full support for GitHub autolinked references:
   - `#123`, `GH-123`, `owner/repo#123`, `org/repo#123`
   - Multiple keywords per field: `Resolves #10, resolves #123, resolves octo-org/octo-repo#100`
@@ -23,7 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 #### Toolbar & Actions
 
 - **Mode tabs** – switch between Form and Free Text modes with a single click
-- **Format Body** – auto‑wrap body lines based on `maxLineLength`, preserving paragraphs (#Phase6)
+- **Format Body** – auto‑wrap body lines based on `maxLineLength`, preserving paragraphs
 - **Git Editor commands**:
   - `Open as Git Editor (COMMIT_EDITMSG)`
   - `Apply Git Editor Message`
@@ -40,7 +40,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 #### Git Integration
 
-- **Frequent values** – Type and Scope values are extracted from the last 50 commits and shown as clickable chips (#Phase5)
+- **Frequent values** – Type and Scope values are extracted from the last 50 commits and shown as clickable chips
 - **Virtual FileSystem Provider** – Git Editor mode now uses a proper `FileSystemProvider`, making the document editable and savable (no read‑only issues)
 
 ### Changed
@@ -178,9 +178,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - _(Future features – see [docs/TODO.md](docs/TODO.md))_
 
-- **Full i18n support** – Persian (fa) and English (en) translations for all UI strings (extension and webview)
-- Language detection follows VS Code display language; users can manually override via `gitCommitMessageEditor.language` setting
-
 ---
 
 ## Legend
@@ -193,6 +190,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - `Security` – vulnerability fixes
 
 ---
+
+### compare
+
+- [v1.7.0...develop](https://github.com/idmdakhi/GitCommitMessageEditor-vsce/compare/v1.7.0...develop)
+- [1.1.3...v1.7.0](https://github.com/idmdakhi/GitCommitMessageEditor-vsce/compare/1.1.3...v1.7.0)
+- [v1.1.0...1.1.3](https://github.com/idmdakhi/GitCommitMessageEditor-vsce/compare/v1.1.0...1.1.3)
+- [v1.0.0...v1.1.0](https://github.com/idmdakhi/GitCommitMessageEditor-vsce/compare/v1.0.0...v1.1.0)
 
 [1.7.0]: https://github.com/idmdakhi/GitCommitMessageEditor-vsce/releases/tag/v1.7.0
 [1.0.0]: https://github.com/idmdakhi/GitCommitMessageEditor-vsce/releases/tag/v1.0.0
