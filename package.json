@@ -2,7 +2,7 @@
   "name": "gitcme",
   "displayName": "Gitcme » Git Commit Message Editor",
   "description": "Modern commit message editor with configurable form, IntelliSense, and AI draft",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "publisher": "idmdakhi",
   "keywords": [
     "git",
