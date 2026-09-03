@@ -83,6 +83,7 @@ You can open the editor in several ways:
 - **Source Control panel** – click the **edit** icon (pencil) in the top‑right corner of the SCM view.
 - **Command Palette** (`Ctrl+Shift+P`) – run `Git Commit Message Editor: Open Editor`.
 - **Command Palette** – run `Git Commit Message Editor: Open in New Tab` to open the editor in a full‑width tab.
+- **Command Palette** – run `Git Commit Message Editor: Open as Git Editor (COMMIT_EDITMSG)` to open a full VS Code editor for direct message writing.
 - **Status Bar** – click the `$(edit) Commit Msg` item in the status bar.
 
 The editor will open as a webview panel, usually beside the Source Control view. It automatically detects the currently active Git repository (or lets you switch if multiple repos are open).
@@ -194,6 +195,58 @@ Other optional fields (BREAKING CHANGE, Co‑authored‑by, etc.) are multiline 
 
 For templates that include `conditional` fields (e.g. BREAKING CHANGE), the field is hidden until you type something into it – it automatically expands and collapses based on content. No separate checkbox is needed.
 
+### Free‑form Text Mode
+
+For users who prefer writing commit messages directly without the structured form, Gitcme now offers a **Free‑form Text** mode. You can toggle between **Form** and **Free Text** modes using the tabs at the top of the form.
+
+- **Form mode** – the familiar structured form with all fields and validation.
+- **Free Text mode** – a large textarea where you can write your commit message freely.
+
+In Free Text mode, the editor automatically parses your message and updates the form fields in real‑time. Lines starting with `#` are treated as comments and will be ignored when the message is inserted. Validation rules (subject length, trailing period, capitalisation, imperative mood) are applied to the first line of the message.
+
+### Git Editor Mode (COMMIT_EDITMSG)
+
+You can now edit your commit message directly in a full VS Code text editor, just like running `git commit` from the terminal. This mode provides:
+
+- **Full VS Code editing** – syntax highlighting, autocomplete, extensions, and all editor features.
+- **Automatic 50/72 character rulers** – configured for Git commit convention.
+- **Comment support** – lines starting with `#` are treated as comments and ignored.
+- **Auto‑apply** – the message is automatically inserted into Source Control when you save (`Ctrl+S`) (configurable via `autoApplyGitEditor`).
+- **Staged files preview** – the template shows the list of staged files and current branch.
+
+To open:
+
+- **Command Palette**: `Git Commit Message Editor: Open as Git Editor (COMMIT_EDITMSG)`
+- **SCM Title**: Click the edit icon (pencil) next to your repository (you can configure which command appears via `scmTitleCommand`).
+
+### Advanced Issue/PR References
+
+Gitcme now fully supports GitHub's autolinked references format. You can use any of the following in `Closes`, `Resolves`, `Refs`, and `See also` fields:
+
+| Format              | Example                         |
+| ------------------- | ------------------------------- |
+| Simple issue number | `#123`                          |
+| With `GH-` prefix   | `GH-123`                        |
+| Cross‑repository    | `owner/repo#123`                |
+| Organization‑scoped | `github-linguist/linguist#4039` |
+
+You can also mix multiple issues with different keywords in a single field:
+
+Supported keywords: `close`, `closes`, `closed`, `fix`, `fixes`, `fixed`, `resolve`, `resolves`, `resolved`.
+
+### Internationalization (i18n)
+
+Gitcme now supports multiple languages. Currently available:
+
+- **English** (default)
+- **Persian (فارسی)**
+
+To change the language, update the setting:
+
+```json
+"gitCommitMessageEditor.language": "fa"
+```
+
 ---
 
 ## Advanced Features
@@ -298,20 +351,27 @@ You can share templates between projects or teams by exporting them as JSON file
 
 The extension contributes many settings under `gitCommitMessageEditor` in VS Code’s settings. Open Settings (`Ctrl+,`), search for `gitCommitMessageEditor`, or use the **Open Settings Page** command.
 
-| Setting                  | Default | Description                                                                                       |
-| ------------------------ | ------- | ------------------------------------------------------------------------------------------------- |
-| `types`                  | `[]`    | Allowed values for the Type field (overrides template options if non‑empty).                      |
-| `scopes`                 | `[]`    | Saved scopes (auto‑added when you click “Save” on a new scope).                                   |
-| `autoFillSignedOffBy`    | `false` | Automatically fill Signed‑off‑by from `git config`.                                               |
-| `autoGitmoji`            | `true`  | Enable/disable automatic Gitmoji selection when picking a Type.                                   |
-| `detectIssueFromBranch`  | `true`  | Detect issue numbers from branch names (e.g. `feature/123` → `123`).                              |
-| `maxSubjectLength`       | `72`    | Recommended maximum subject length.                                                               |
-| `maxLineLength`          | `100`   | Maximum line length in the body before a warning.                                                 |
-| `rememberFrequentValues` | `true`  | Show frequently used type/scope as clickable chips (currently scopes only).                       |
-| `showRecentCommits`      | `true`  | Show recent commits in the preview pane.                                                          |
-| `recentCommitsMaxItems`  | `12`    | Maximum number of recent commits to display.                                                      |
-| `emojiPrefix`            | `false` | Prefix the final message with a Gitmoji by default (only affects templates that include Gitmoji). |
-| `keepAfterSave`          | `true`  | Keep the editor tab open after inserting the message into Source Control.                         |
+| Setting                  | Default  | Description                                                  |
+| ------------------------ | -------- | ------------------------------------------------------------ |
+| `types`                  | `[]`     | Allowed values for the Type field                            |
+| `scopes`                 | `[]`     | Saved scopes                                                 |
+| `autoFillSignedOffBy`    | `false`  | Auto-fill Signed-off-by from `git config`                    |
+| `autoGitmoji`            | `false`  | Auto-select Gitmoji matching Type                            |
+| `enableStatusBar`        | `false`  | Show status in VS Code status bar                            |
+| `detectIssueFromBranch`  | `true`   | Detect issue numbers from branch names                       |
+| `maxSubjectLength`       | `72`     | Recommended maximum subject length                           |
+| `maxLineLength`          | `100`    | Maximum line length in body                                  |
+| `rememberFrequentValues` | `true`   | Show frequent values as chips (deprecated)                   |
+| `rememberFrequentTypes`  | `true`   | Show frequent Type values as chips                           |
+| `rememberFrequentScopes` | `true`   | Show frequent Scope values as chips                          |
+| `showRecentCommits`      | `true`   | Show recent commits                                          |
+| `recentCommitsMaxItems`  | `12`     | Maximum recent commits to display                            |
+| `emojiPrefix`            | `false`  | Prefix the message with a Gitmoji by default                 |
+| `keepAfterSave`          | `true`   | Keep editor tab open after Insert                            |
+| `autoApplyGitEditor`     | `true`   | Auto-apply message to SCM on Git Editor save                 |
+| `defaultEditorMode`      | `"form"` | Default editor mode (`"form"` or `"freeform"`)               |
+| `scmTitleCommand`        | `"open"` | Command shown in SCM title (`"open"` or `"openAsGitEditor"`) |
+| `language`               | `"auto"` | UI language (`"auto"`, `"en"`, or `"fa"`)                    |
 
 ---
 
