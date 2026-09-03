@@ -290,13 +290,128 @@
     });
   }
 
+  // ===== NEW: Issue processing with keyword detection =====
+  /**
+   * پردازش لیست ارجاع‌های Issue/PR با پشتیبانی از فرمت‌های گیت‌هاب:
+   *   - #123
+   *   - GH-123
+   *   - owner/repo#123
+   *   - organization/repository#123
+   *   - ترکیب موارد فوق با جداکننده‌های کاما یا فاصله
+   */
   function issueList(raw) {
     return String(raw || "")
       .split(/[,\s]+/)
       .map((item) => item.trim())
       .filter(Boolean)
-      .map((item) => (item.startsWith("#") ? item : `#${item}`))
+      .map((item) => {
+        // اگر شامل '#' باشد، همان را برگردان
+        if (item.includes("#")) {
+          return item;
+        }
+        // در غیر این صورت '#' را به ابتدا اضافه کن
+        return `#${item}`;
+      })
       .join(", ");
+  }
+
+  /**
+   * پردازش کامل یک فیلد Issue با پشتیبانی از چندین کلمه کلیدی مجزا
+   * @param {string} raw - ورودی خام کاربر
+   * @param {string} defaultPrefix - prefix پیش‌فرض از توکن (در صورت عدم وجود کلمه کلیدی)
+   * @returns {string} - خروجی پردازش‌شده
+   */
+  function processIssueField(raw, defaultPrefix) {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      return "";
+    }
+
+    const keywords = [
+      "close",
+      "closes",
+      "closed",
+      "fix",
+      "fixes",
+      "fixed",
+      "resolve",
+      "resolves",
+      "resolved",
+    ];
+
+    // تقسیم بر اساس کاما یا نقطه‌ویرگول (با رعایت فاصله)
+    const parts = trimmed.split(/[;,]\s*/).filter(Boolean);
+
+    // اگر فقط یک بخش وجود دارد، پردازش ساده (برای سازگاری با حالت تک‌کلمه‌ای)
+    if (parts.length === 1) {
+      const part = parts[0].trim();
+      const lower = part.toLowerCase();
+      let keyword = null;
+      let rest = part;
+
+      for (const kw of keywords) {
+        if (lower.startsWith(kw) && /^[:,\s]/.test(part.slice(kw.length))) {
+          keyword = part.slice(0, kw.length);
+          rest = part
+            .slice(kw.length)
+            .replace(/^[:,\s]+/, "")
+            .trim();
+          break;
+        }
+      }
+
+      const processedIssues = issueList(rest);
+      if (!processedIssues) {
+        return "";
+      }
+
+      // اگر کلمه کلیدی پیدا شد، از آن استفاده کن، در غیر این صورت از defaultPrefix
+      if (keyword) {
+        return `${keyword}: ${processedIssues}`;
+      } else if (defaultPrefix) {
+        return `${defaultPrefix}${processedIssues}`;
+      } else {
+        return processedIssues;
+      }
+    }
+
+    // چند بخش: هر بخش را جداگانه پردازش کن
+    const results = [];
+    for (let part of parts) {
+      part = part.trim();
+      if (!part) continue;
+
+      const lower = part.toLowerCase();
+      let keyword = null;
+      let rest = part;
+
+      for (const kw of keywords) {
+        if (lower.startsWith(kw) && /^[:,\s]/.test(part.slice(kw.length))) {
+          keyword = part.slice(0, kw.length);
+          rest = part
+            .slice(kw.length)
+            .replace(/^[:,\s]+/, "")
+            .trim();
+          break;
+        }
+      }
+
+      const processedIssues = issueList(rest);
+      if (!processedIssues) {
+        continue;
+      }
+
+      if (keyword) {
+        results.push(`${keyword}: ${processedIssues}`);
+      } else if (defaultPrefix) {
+        // اگر کلمه کلیدی در این بخش نبود، از defaultPrefix استفاده کن
+        results.push(`${defaultPrefix}${processedIssues}`);
+      } else {
+        results.push(processedIssues);
+      }
+    }
+
+    return results.join(", ");
   }
 
   // ===== Suggestions / AI =====
@@ -392,6 +507,7 @@
     );
   }
 
+  // ===== NEW: loadRawIntoSubjectBody with support for multiple keywords =====
   function loadRawIntoSubjectBody(raw) {
     // اگر تب Free‑form فعال است، متن خام مستقیماً در همان Textarea قرار
     // می‌گیرد؛ تجزیه به فیلدهای فرم بی‌فایده است چون فرم در حال حاضر نمایش
@@ -406,39 +522,35 @@
     if (!findToken("subject")) return;
 
     const lines = String(raw || "").split("\n");
-
     let header = lines[0] || "";
 
-    // If the first line starts with an emoji (e.g. '✨ feat: ...'), extract it and put it in Gitmoji
+    // استخراج Gitmoji از ابتدای خط اول (اگر وجود داشته باشد)
     const emojiMatch = header.match(/^(\p{Extended_Pictographic}\uFE0F?)\s+/u);
-
     if (emojiMatch && findToken("gitmoji")) {
       values.gitmoji = emojiMatch[1];
       conditionalEnabled.gitmoji = true;
       header = header.slice(emojiMatch[0].length);
     }
 
+    // تشخیص Conventional Commits: type(scope): subject
     const match = header.match(/^([a-z]+)(\(([^)]+)\))?:\s*(.*)$/i);
-
     if (match && findToken("type")) {
       values.type = match[1];
-
       if (findToken("scope")) {
         values.scope = match[3] || "";
-
         if (values.scope) {
           conditionalEnabled.scope = true;
         }
       }
-
       values.subject = match[4] || "";
     } else {
       values.subject = header;
     }
 
-    // Separate the remaining lines (body + issue references + trailers): lines that start with a known field prefix (e.g. 'Signed-off-by: ', 'Closes: ', etc.) go into that field — not Body
+    // پردازش خطوط باقی‌مانده (بدنه، ارجاع‌ها، و trailerها)
     const restLines = lines.slice(1);
 
+    // لیست توکن‌هایی که دارای prefix هستند (به جز type, subject, scope)
     const prefixTokens = (config.tokens || [])
       .filter(
         (token) =>
@@ -456,6 +568,7 @@
     restLines.forEach((line) => {
       const trimmedStart = line.replace(/^\s+/, "");
 
+      // پیدا کردن اولین token که با خط شروع می‌شود
       const matchedToken = prefixTokens.find((token) =>
         trimmedStart.startsWith(token.prefix),
       );
@@ -468,65 +581,69 @@
           trailerChunks[currentTrailerName] = [];
         }
 
-        trailerChunks[currentTrailerName].push(
-          trimmedStart.slice(matchedToken.prefix.length).trim(),
-        );
-
+        // مقدار را بدون prefix ذخیره می‌کنیم
+        const valueWithoutPrefix = trimmedStart
+          .slice(matchedToken.prefix.length)
+          .trim();
+        trailerChunks[currentTrailerName].push(valueWithoutPrefix);
         return;
       }
 
       if (inTrailerBlock) {
         if (line.trim() === "") return; // خط خالی داخل بلوک trailer نادیده گرفته می‌شود
-
-        // ادامه‌ی خط trailer قبلی (مثلاً پاراگراف چندخطی BREAKING CHANGE)
+        // ادامه‌ی خط قبلی (مثلاً پاراگراف چندخطی BREAKING CHANGE)
         if (currentTrailerName && trailerChunks[currentTrailerName]?.length) {
           const idx = trailerChunks[currentTrailerName].length - 1;
-
           trailerChunks[currentTrailerName][idx] += ` ${line.trim()}`;
         }
-
         return;
       }
 
+      // خطوط باقی‌مانده به بدنه اضافه می‌شوند
       bodyLines.push(line);
     });
 
+    // اعمال مقادیر استخراج‌شده به فیلدهای مربوطه
     Object.keys(trailerChunks).forEach((name) => {
       const token = findToken(name);
-
       if (!token) return;
 
       const occurrences = trailerChunks[name].filter((v) => v !== "");
-
       if (!occurrences.length) return;
 
-      values[name] = token.perLine
-        ? occurrences.join("\n")
-        : occurrences.join(", ");
+      // برای فیلدهای issueList، کل مقدار را به‌عنوان یک رشته نگه می‌داریم
+      // (چون ممکن است چندین کلمه کلیدی داشته باشد)
+      if (token.issueList) {
+        // پیوستن تمام بخش‌ها با کاما و فاصله (همانند ورودی کاربر)
+        values[name] = occurrences.join(", ");
+      } else {
+        values[name] = token.perLine
+          ? occurrences.join("\n")
+          : occurrences.join(", ");
+      }
 
       conditionalEnabled[name] = true;
     });
 
+    // بدنه
     if (findToken("body")) {
       const bodyText = bodyLines.join("\n").trim();
-
       values.body = bodyText;
       conditionalEnabled.body = !!bodyText;
     }
 
     ensureEnabledForFilledOptionals();
-
     saveDraft();
     render();
   }
 
   // Template Engine
 
+  // ===== NEW: computeTokenOutput with processIssueField =====
   function computeTokenOutput(token) {
     if (!token) return "";
 
     // اگر «Auto Gitmoji» غیرفعال است، Gitmoji در پیام نهایی درج نمی‌شود
-    // (حتی اگر قبلاً مقداری برایش ثبت شده باشد)
     if (token.name === "gitmoji" && !autoGitmoji) {
       return "";
     }
@@ -549,8 +666,14 @@
       return "";
     }
 
+    // ===== پردازش ویژه برای فیلدهای issueList =====
     if (token.issueList) {
-      return (token.prefix || "") + issueList(raw) + (token.suffix || "");
+      const defaultPrefix = token.prefix || "";
+      const result = processIssueField(raw, defaultPrefix);
+      if (!result) {
+        return "";
+      }
+      return result + (token.suffix || "");
     }
 
     if (token.perLine) {
